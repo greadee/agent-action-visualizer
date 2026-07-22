@@ -1,0 +1,22 @@
+{
+  "schema_version": "1.0",
+  "event_id": "evt-fixture-1",
+  "session_id": "session-fixture",
+  "project_id": "project-fixture",
+  "agent_id": "agent-fixture",
+  "agent_type": "codex",
+  "adapter_id": "codex-hooks",
+  "adapter_version": "dev",
+  "source_type": "native_hook",
+  "source_confidence": "exact",
+  "event_type": "file_patched",
+  "operation": "patch",
+  "status": "completed",
+  "timestamp": "2026-07-21T20:00:00Z",
+  "turn_id": "turn-fixture",
+  "tool_name": "apply_patch",
+  "path": "internal/session/session.go",
+  "lines_added": 12,
+  "lines_deleted": 3,
+  "metadata": { "fixture": true }
+}

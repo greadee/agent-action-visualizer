@@ -38,6 +38,20 @@
 - Files changed: Go workspace, Wails desktop shell, React/TypeScript frontend, lockfiles, lint/test/build configuration, CI, toolchain documentation
 - Tests run: Go unit tests and vet for root/desktop; Prettier check; ESLint; TypeScript check; Vitest (1 test); Vite production build; Wails Windows production build
 - Benchmark result: not applicable
-- Commit SHA: pending; recorded in the next slice
+- Commit SHA: `31ad215`
 - Known limitations: platform packaging is deferred to P10; the initial Three.js bundle is 1.07 MB before later code splitting/LOD work; the first scaffold screen is not the production renderer
 - Next slice: P1-S1 — Protocol / define
+
+## P1-S1 — Protocol / define
+
+- Phase: 1
+- Slice: P1-S1
+- Feature: Protocol
+- Action: Define
+- Status: complete
+- Files changed: versioned JSON Schema, Go and TypeScript types, fixtures, compatibility tests, protocol documentation
+- Tests run: `go test ./...` including round-trip, invalid-event, unknown-field, and cross-language enum contract tests; frontend TypeScript, ESLint, and Prettier checks
+- Benchmark result: not applicable
+- Commit SHA: pending; recorded in the next slice
+- Known limitations: generated-code automation is deferred; types are hand-maintained and contract-tested
+- Next slice: P1-S2 — Ingestion / implement
