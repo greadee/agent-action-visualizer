@@ -52,6 +52,20 @@
 - Files changed: versioned JSON Schema, Go and TypeScript types, fixtures, compatibility tests, protocol documentation
 - Tests run: `go test ./...` including round-trip, invalid-event, unknown-field, and cross-language enum contract tests; frontend TypeScript, ESLint, and Prettier checks
 - Benchmark result: not applicable
-- Commit SHA: pending; recorded in the next slice
+- Commit SHA: `15bdbdf`
 - Known limitations: generated-code automation is deferred; types are hand-maintained and contract-tested
 - Next slice: P1-S2 — Ingestion / implement
+
+## P1-S2 — Ingestion / implement
+
+- Phase: 1
+- Slice: P1-S2
+- Feature: Ingestion
+- Action: Implement
+- Status: complete
+- Files changed: bounded priority queue, asynchronous collector, path normalization, deduper, tests/benchmark, mock-event CLI
+- Tests run: `go test ./...`; mock-event CLI validated against the normalized v1 fixture
+- Benchmark result: `BenchmarkQueueOffer` 21.36 ns/op on Windows/amd64 Ryzen 5 9600X (100 ms benchtime); queue-only measurement, not persistent IPC
+- Commit SHA: pending; recorded in the next slice
+- Known limitations: native pipe/socket transport is deferred to its platform slice; this slice establishes the transport-independent collector boundary
+- Next slice: P1-S3 — Session / implement
