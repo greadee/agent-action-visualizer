@@ -205,6 +205,6 @@
 - Files changed: Git history enrichment, agent activity report loader, uniform-radius grouped layout, Time/Work extrusion renderer, populated inspector, review-project generator, geometry documentation, cross-layer tests
 - Tests run: complete core and desktop Go tests/vet; Prettier, ESLint, TypeScript, Vitest (8 tests), Vite production build; actual Wails bridge browser review in Time and Work modes
 - Benchmark result: production bundle 1,109.80 kB (305.74 kB gzip); rendering remains instanced for nodes and edit points
-- Commit SHA: pending; recorded after push
+- Commit SHA: `1839161`
 - Known limitations: Git rename inference is deliberately not claimed; agent report ingestion is file-based until native adapters publish equivalent events
 - Next slice: paused by user until this graph model is accepted
