@@ -94,6 +94,20 @@
 - Files changed: pinned pure-Go SQLite dependency, initial migration, event/session repositories, recovery and restart tests
 - Tests run: `go test ./...` including migrations, idempotent event persistence, database reopen, and active-session recovery
 - Benchmark result: not applicable
-- Commit SHA: pending; recorded in the next slice
+- Commit SHA: `b8741a9`
 - Known limitations: graph/node repositories are schema-ready and will be filled with P2 graph behavior
 - Next slice: P2-S1 — Scanner / implement
+
+## P2-S1 — Scanner / implement
+
+- Phase: 2
+- Slice: P2-S1
+- Feature: Scanner
+- Action: Implement
+- Status: complete
+- Files changed: root-constrained scanner, default/.gitignore/.aavignore filters, classification, symlink handling, tests
+- Tests run: `go test ./...` including default, `.gitignore`, `.aavignore`, and file classification behavior
+- Benchmark result: not applicable
+- Commit SHA: pending; recorded in the next slice
+- Known limitations: gitignore negation and the full gitignore grammar are deferred to a dedicated matcher replacement
+- Next slice: P2-S2 — Identity / stabilize
