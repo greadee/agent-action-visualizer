@@ -125,6 +125,20 @@ select {
   border-radius: 0;
   background: #49657a;
 }
+.legend__wide {
+  grid-column: 1 / -1;
+}
+.legend .legend__activity {
+  width: 14px;
+  height: 2px;
+  border-radius: 0;
+}
+.legend__activity--time {
+  background: #ffb45f;
+}
+.legend__activity--work {
+  background: #5ce0c4;
+}
 .inspector {
   padding: 24px;
   overflow-y: auto;
@@ -135,6 +149,14 @@ select {
   overflow-wrap: anywhere;
   margin: 10px 0 22px;
   font-size: 15px;
+}
+.commit-group {
+  overflow: hidden;
+  margin: -12px 0 20px;
+  color: #7be4ce;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .inspector dl {
   margin: 0;

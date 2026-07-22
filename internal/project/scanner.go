@@ -24,13 +24,28 @@ const (
 )
 
 type Node struct {
-	ID         string   `json:"id,omitempty"`
-	Path       string   `json:"path"`
-	ParentPath string   `json:"parent_path,omitempty"`
-	Name       string   `json:"name"`
-	Kind       NodeKind `json:"kind"`
-	Size       int64    `json:"size,omitempty"`
-	ModTime    int64    `json:"mod_time,omitempty"`
+	ID         string       `json:"id,omitempty"`
+	Path       string       `json:"path"`
+	ParentPath string       `json:"parent_path,omitempty"`
+	Name       string       `json:"name"`
+	Kind       NodeKind     `json:"kind"`
+	Size       int64        `json:"size,omitempty"`
+	ModTime    int64        `json:"mod_time,omitempty"`
+	Activity   NodeActivity `json:"activity,omitempty"`
+}
+
+type NodeActivity struct {
+	GroupKey       string   `json:"group_key,omitempty"`
+	LastCommit     string   `json:"last_commit,omitempty"`
+	LastCommitAt   int64    `json:"last_commit_at,omitempty"`
+	LastEvent      string   `json:"last_event,omitempty"`
+	AccessCount    int      `json:"access_count,omitempty"`
+	TotalTimeMS    int64    `json:"total_time_ms,omitempty"`
+	LinesAdded     int64    `json:"lines_added,omitempty"`
+	LinesDeleted   int64    `json:"lines_deleted,omitempty"`
+	RecentTools    []string `json:"recent_tools,omitempty"`
+	SessionHistory []string `json:"session_history,omitempty"`
+	Confidence     string   `json:"confidence,omitempty"`
 }
 type Snapshot struct {
 	Root  string `json:"root"`
@@ -39,7 +54,7 @@ type Snapshot struct {
 type Scanner struct{ defaults []string }
 
 func NewScanner() *Scanner {
-	return &Scanner{defaults: []string{".git", "node_modules", "vendor", "dist", "build", "coverage", ".next", "target", "__pycache__", ".cache"}}
+	return &Scanner{defaults: []string{".git", ".aav", "node_modules", "vendor", "dist", "build", "coverage", ".next", "target", "__pycache__", ".cache"}}
 }
 
 func (s *Scanner) Scan(ctx context.Context, root string) (Snapshot, error) {

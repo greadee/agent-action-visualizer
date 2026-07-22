@@ -1,6 +1,6 @@
 # Camera focus transitions
 
-Selecting or recentering a node creates a bounded, interruptible camera transition. The destination camera remains at the current orbit distance and is placed on the selected node's outward radial axis. It looks back at the selected node, preserving nearby graph context without changing layout coordinates.
+Selecting or recentering a node creates a bounded, interruptible camera transition. The root overview uses a distance of 28 graph units so the seven-unit node shell and four-unit activity extrusions fit in frame. File focus is clamped between 8 and 11 units from the selected node and is placed on that node's outward radial axis. It looks back at the selected node, preserving its latest-involvement cluster without changing layout coordinates.
 
 For focus distance `d` in graph units, duration is:
 

@@ -1,6 +1,7 @@
 import { Html } from '@react-three/drei'
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Color, InstancedMesh, Matrix4, Vector3 } from 'three'
+import { buildExtrusions, type ActivityMode } from '../activity/extrusions'
 import { CameraFocusController } from '../camera/CameraFocusController'
 import { nodeColors } from '../graph/palette'
 import type { GraphSnapshot } from '../graph/types'
@@ -10,6 +11,8 @@ export function GraphScene({
   recenterKey,
   showLabels,
   showStructure,
+  showActivity,
+  activityMode,
   onSelect,
 }: {
   graph: GraphSnapshot
@@ -17,9 +20,12 @@ export function GraphScene({
   recenterKey: number
   showLabels: boolean
   showStructure: boolean
+  showActivity: boolean
+  activityMode: ActivityMode
   onSelect: (id: string) => void
 }) {
   const mesh = useRef<InstancedMesh>(null)
+  const activityPoints = useRef<InstancedMesh>(null)
   const [hovered, setHovered] = useState<number>()
   const selected = graph.nodes.find((n) => n.id === selectedId)
   useLayoutEffect(() => {
@@ -50,6 +56,30 @@ export function GraphScene({
       ]),
     )
   }, [graph])
+  const extrusions = useMemo(
+    () => buildExtrusions(graph.nodes, activityMode),
+    [activityMode, graph.nodes],
+  )
+  const activityPositions = useMemo(
+    () =>
+      new Float32Array(
+        extrusions.flatMap((extrusion) => [
+          ...extrusion.start,
+          ...extrusion.end,
+        ]),
+      ),
+    [extrusions],
+  )
+  useLayoutEffect(() => {
+    const matrix = new Matrix4()
+    extrusions.forEach((extrusion, index) => {
+      matrix.makeTranslation(...extrusion.end)
+      activityPoints.current?.setMatrixAt(index, matrix)
+    })
+    if (activityPoints.current) {
+      activityPoints.current.instanceMatrix.needsUpdate = true
+    }
+  }, [extrusions, showActivity])
   const hoverNode = hovered === undefined ? undefined : graph.nodes[hovered]
   return (
     <>
@@ -65,6 +95,30 @@ export function GraphScene({
           </bufferGeometry>
           <lineBasicMaterial color="#294154" transparent opacity={0.72} />
         </lineSegments>
+      )}
+      {showActivity && extrusions.length > 0 && (
+        <>
+          <lineSegments>
+            <bufferGeometry>
+              <bufferAttribute
+                attach="attributes-position"
+                args={[activityPositions, 3]}
+              />
+            </bufferGeometry>
+            <lineBasicMaterial
+              color={activityMode === 'time' ? '#ffb45f' : '#5ce0c4'}
+            />
+          </lineSegments>
+          <instancedMesh
+            ref={activityPoints}
+            args={[undefined, undefined, extrusions.length]}
+          >
+            <sphereGeometry args={[0.12, 10, 10]} />
+            <meshBasicMaterial
+              color={activityMode === 'time' ? '#ffd096' : '#9affea'}
+            />
+          </instancedMesh>
+        </>
       )}
       <instancedMesh
         ref={mesh}

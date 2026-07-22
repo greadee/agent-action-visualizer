@@ -6,6 +6,7 @@ import (
 	"runtime"
 	"sync"
 
+	"github.com/greadee/agent-action-visualizer/internal/activity"
 	"github.com/greadee/agent-action-visualizer/internal/graph"
 	"github.com/greadee/agent-action-visualizer/internal/project"
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
@@ -36,10 +37,11 @@ func (a *App) Health() map[string]string {
 }
 
 type graphNodeDTO struct {
-	ID       string           `json:"id"`
-	Path     string           `json:"path"`
-	Kind     project.NodeKind `json:"kind"`
-	Position [3]float64       `json:"position"`
+	ID       string               `json:"id"`
+	Path     string               `json:"path"`
+	Kind     project.NodeKind     `json:"kind"`
+	Position [3]float64           `json:"position"`
+	Activity project.NodeActivity `json:"activity"`
 }
 type graphEdgeDTO struct {
 	Source string `json:"source"`
@@ -68,8 +70,12 @@ func (a *App) LoadProject(root string) (graphSnapshotDTO, error) {
 	}
 	a.root = scanned.Root
 	a.identity = graph.NewIdentityRegistry(scanned.Root, runtime.GOOS == "windows")
-	nodes := a.identity.Assign(scanned.Nodes)
-	a.snapshot = graph.Layout(nodes, 1, nil)
+	enriched, err := activity.Enrich(context.Background(), scanned.Root, scanned.Nodes)
+	if err != nil {
+		return graphSnapshotDTO{}, err
+	}
+	nodes := a.identity.Assign(enriched)
+	a.snapshot = graph.Layout(nodes, 1)
 	result := snapshotDTO(a.snapshot)
 	if a.ctx != nil {
 		wailsruntime.EventsEmit(a.ctx, "aav:graph:snapshot", result)
@@ -88,7 +94,11 @@ func (a *App) RefreshProject() (graphPatchDTO, error) {
 	if err != nil {
 		return graphPatchDTO{}, err
 	}
-	next := graph.Layout(a.identity.Assign(scanned.Nodes), a.snapshot.Revision+1, positions(a.snapshot))
+	enriched, err := activity.Enrich(context.Background(), scanned.Root, scanned.Nodes)
+	if err != nil {
+		return graphPatchDTO{}, err
+	}
+	next := graph.Layout(a.identity.Assign(enriched), a.snapshot.Revision+1)
 	change := graph.Diff(a.snapshot, next)
 	a.snapshot = next
 	result := patchDTO(change)
@@ -107,7 +117,7 @@ func patchDTO(value graph.Patch) graphPatchDTO {
 func nodeDTOs(nodes []graph.PositionedNode) []graphNodeDTO {
 	result := make([]graphNodeDTO, 0, len(nodes))
 	for _, node := range nodes {
-		result = append(result, graphNodeDTO{ID: node.ID, Path: node.Path, Kind: node.Kind, Position: [3]float64{node.Position.X, node.Position.Y, node.Position.Z}})
+		result = append(result, graphNodeDTO{ID: node.ID, Path: node.Path, Kind: node.Kind, Position: [3]float64{node.Position.X, node.Position.Y, node.Position.Z}, Activity: node.Activity})
 	}
 	return result
 }
@@ -115,13 +125,6 @@ func edgeDTOs(edges []graph.Edge) []graphEdgeDTO {
 	result := make([]graphEdgeDTO, 0, len(edges))
 	for _, edge := range edges {
 		result = append(result, graphEdgeDTO{Source: edge.Source, Target: edge.Target})
-	}
-	return result
-}
-func positions(snapshot graph.GraphSnapshot) map[string]graph.Vec3 {
-	result := make(map[string]graph.Vec3, len(snapshot.Nodes))
-	for _, node := range snapshot.Nodes {
-		result[node.ID] = node.Position
 	}
 	return result
 }

@@ -8,5 +8,6 @@ export const nodeColors: Record<GraphNode['kind'], string> = {
   config: '#f0b45d',
   documentation: '#74a8ff',
   asset: '#ec7ea8',
+  generated: '#8b98a3',
   tombstone: '#66717c',
 }

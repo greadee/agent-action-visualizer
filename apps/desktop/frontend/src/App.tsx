@@ -1,6 +1,7 @@
 import { Canvas } from '@react-three/fiber'
 import { useEffect, useState } from 'react'
 import './App.css'
+import type { ActivityMode } from './activity/extrusions'
 import { useGraphBridge } from './bridge/useGraphBridge'
 import { demoGraph } from './graph/demoGraph'
 import { NodeInspector } from './inspector/NodeInspector'
@@ -8,11 +9,13 @@ import { GraphLegend } from './scene/GraphLegend'
 import { GraphScene } from './scene/GraphScene'
 
 function App() {
-  const [selectedId, setSelectedId] = useState('app')
+  const [selectedId, setSelectedId] = useState('root')
   const [recenterKey, setRecenterKey] = useState(0)
   const [query, setQuery] = useState('')
   const [showLabels, setShowLabels] = useState(true)
   const [showStructure, setShowStructure] = useState(true)
+  const [showActivity, setShowActivity] = useState(true)
+  const [activityMode, setActivityMode] = useState<ActivityMode>('time')
   const [projectPath, setProjectPath] = useState('')
   const [projectError, setProjectError] = useState('')
   const { graph, loadProject } = useGraphBridge(demoGraph)
@@ -89,10 +92,20 @@ function App() {
           <div className="rule" />
           <p className="panel__label">MODE</p>
           <div className="segmented" aria-label="Activity mode">
-            <button className="segmented__active" type="button">
+            <button
+              className={activityMode === 'time' ? 'segmented__active' : ''}
+              type="button"
+              onClick={() => setActivityMode('time')}
+            >
               Time
             </button>
-            <button type="button">Work</button>
+            <button
+              className={activityMode === 'work' ? 'segmented__active' : ''}
+              type="button"
+              onClick={() => setActivityMode('work')}
+            >
+              Work
+            </button>
           </div>
           <div className="rule" />
           <label className="panel__label" htmlFor="layout-select">
@@ -117,10 +130,18 @@ function App() {
             />
             Labels
           </label>
-          <GraphLegend />
+          <label className="toggle">
+            <input
+              type="checkbox"
+              checked={showActivity}
+              onChange={(event) => setShowActivity(event.target.checked)}
+            />
+            Activity extrusions
+          </label>
+          <GraphLegend activityMode={activityMode} />
         </aside>
         <div className="viewport">
-          <Canvas camera={{ position: [0, 0, 6], fov: 48 }}>
+          <Canvas camera={{ position: [0, 0, 28], fov: 48 }}>
             <color attach="background" args={['#070a12']} />
             <GraphScene
               graph={graph}
@@ -128,6 +149,8 @@ function App() {
               recenterKey={recenterKey}
               showLabels={showLabels}
               showStructure={showStructure}
+              showActivity={showActivity}
+              activityMode={activityMode}
               onSelect={setSelectedId}
             />
           </Canvas>

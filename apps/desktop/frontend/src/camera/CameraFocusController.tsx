@@ -36,7 +36,13 @@ export function CameraFocusController({
     if (!focus || !controls.current) return
     const toTarget = new Vector3(...focus)
     const distance = controls.current.target.distanceTo(toTarget)
-    const orbitDistance = camera.position.distanceTo(controls.current.target)
+    const currentOrbitDistance = camera.position.distanceTo(
+      controls.current.target,
+    )
+    const isOverview = toTarget.lengthSq() < 0.0001
+    const orbitDistance = isOverview
+      ? 28
+      : Math.min(11, Math.max(8, currentOrbitDistance))
     const toPosition = focusCameraPosition(
       focus,
       [camera.position.x, camera.position.y, camera.position.z],

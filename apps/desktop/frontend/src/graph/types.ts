@@ -10,8 +10,23 @@ export interface GraphNode {
     | 'config'
     | 'documentation'
     | 'asset'
+    | 'generated'
     | 'tombstone'
   position: Vec3
+  activity?: NodeActivity
+}
+export interface NodeActivity {
+  group_key?: string
+  last_commit?: string
+  last_commit_at?: number
+  last_event?: string
+  access_count?: number
+  total_time_ms?: number
+  lines_added?: number
+  lines_deleted?: number
+  recent_tools?: string[]
+  session_history?: string[]
+  confidence?: string
 }
 export interface GraphEdge {
   source: string

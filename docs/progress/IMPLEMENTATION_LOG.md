@@ -194,3 +194,17 @@
 - Commit SHA: `de38b6f`
 - Known limitations: refresh is an explicit API call until filesystem/adaptor triggers arrive; native directory-picker UX is deferred while the path-based API remains functional
 - Next slice: P4-S2 - Focus / animate
+
+## P4-S1A - Graph readability / stabilize
+
+- Phase: 4 corrective stabilization
+- Slice: P4-S1A
+- Feature: Git involvement shell and activity edit points
+- Action: Stabilize
+- Status: complete
+- Files changed: Git history enrichment, agent activity report loader, uniform-radius grouped layout, Time/Work extrusion renderer, populated inspector, review-project generator, geometry documentation, cross-layer tests
+- Tests run: complete core and desktop Go tests/vet; Prettier, ESLint, TypeScript, Vitest (8 tests), Vite production build; actual Wails bridge browser review in Time and Work modes
+- Benchmark result: production bundle 1,109.80 kB (305.74 kB gzip); rendering remains instanced for nodes and edit points
+- Commit SHA: pending; recorded after push
+- Known limitations: Git rename inference is deliberately not claimed; agent report ingestion is file-based until native adapters publish equivalent events
+- Next slice: paused by user until this graph model is accepted

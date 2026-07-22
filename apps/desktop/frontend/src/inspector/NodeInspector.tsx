@@ -1,4 +1,5 @@
 import type { GraphNode } from '../graph/types'
+import { formatDuration, formatTimestamp } from './format'
 
 function parentPath(path: string): string {
   const separator = path.lastIndexOf('/')
@@ -14,29 +15,48 @@ export function NodeInspector({ node }: { node?: GraphNode }) {
       ) : (
         <>
           <h2>{node.path}</h2>
+          {node.activity?.group_key && (
+            <p className="commit-group" title={node.activity.group_key}>
+              Latest involvement · {node.activity.group_key.slice(0, 8)}
+            </p>
+          )}
           <dl>
             <dt>Node type</dt>
             <dd>{node.kind}</dd>
             <dt>Parent folder</dt>
             <dd>{parentPath(node.path)}</dd>
             <dt>Status</dt>
-            <dd>Indexed</dd>
-            <dt>Access count</dt>
-            <dd>Not observed</dd>
-            <dt>Total time</dt>
-            <dd>Not observed</dd>
+            <dd>
+              {node.activity?.last_commit ? 'Git tracked' : 'Uncommitted'}
+            </dd>
+            <dt>Access count from Git</dt>
+            <dd>{node.activity?.access_count ?? 0} commit touches</dd>
+            <dt>Total time reported by agent</dt>
+            <dd>{formatDuration(node.activity?.total_time_ms)}</dd>
             <dt>Lines added / deleted</dt>
-            <dd>Not observed</dd>
+            <dd>
+              +{node.activity?.lines_added ?? 0} / -
+              {node.activity?.lines_deleted ?? 0}
+            </dd>
             <dt>Event confidence</dt>
-            <dd title="No live adapter event is attached to this static node">
-              Absent — static scan
+            <dd title="Git values are inferred from commits; time and work values come from the agent report">
+              {node.activity?.confidence ?? 'Absent — static scan'}
             </dd>
             <dt>Recent tools</dt>
-            <dd>None recorded</dd>
+            <dd>
+              {node.activity?.recent_tools?.join(', ') || 'None recorded'}
+            </dd>
+            <dt>Session history</dt>
+            <dd>
+              {node.activity?.session_history?.join(', ') ||
+                'Not reported by agent'}
+            </dd>
             <dt>Rename history</dt>
-            <dd>None recorded</dd>
+            <dd>Not inferred from Git</dd>
             <dt>Last event</dt>
-            <dd>Not observed</dd>
+            <dd>{node.activity?.last_event ?? 'Not observed'}</dd>
+            <dt>Last involvement</dt>
+            <dd>{formatTimestamp(node.activity?.last_commit_at)}</dd>
           </dl>
         </>
       )}
