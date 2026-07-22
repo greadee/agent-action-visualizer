@@ -44,3 +44,30 @@ export interface GraphPatch {
   removed: string[]
   edges: GraphEdge[]
 }
+
+export interface LiveFocusState {
+  session_id: string
+  active_node_id?: string
+  active_path?: string
+  previous_node_id?: string
+  previous_path?: string
+  secondary_node_ids?: string[]
+  secondary_paths?: string[]
+  operation?: string
+  source?: string
+  confidence?: string
+  timestamp?: string
+}
+
+export interface ActivityEvent {
+  schema_version: '1.0'
+  event_id: string
+  session_id: string
+  source_type: string
+  source_confidence: string
+  event_type: string
+  operation?: string
+  timestamp: string
+  path?: string
+  metadata?: { secondary_paths?: string[] }
+}

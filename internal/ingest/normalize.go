@@ -21,18 +21,20 @@ func Normalize(event protocol.Event, selectedRoot string) (protocol.Event, error
 		return protocol.Event{}, errors.New("selected project root is required for path events")
 	}
 	event.ProjectRoot = root
-	if event.Path, err = relativeWithin(root, event.Path); err != nil {
+	if event.Path, err = NormalizeProjectPath(root, event.Path); err != nil {
 		return protocol.Event{}, fmt.Errorf("path: %w", err)
 	}
 	if event.PreviousPath != "" {
-		if event.PreviousPath, err = relativeWithin(root, event.PreviousPath); err != nil {
+		if event.PreviousPath, err = NormalizeProjectPath(root, event.PreviousPath); err != nil {
 			return protocol.Event{}, fmt.Errorf("previous_path: %w", err)
 		}
 	}
 	return event, nil
 }
 
-func relativeWithin(root, value string) (string, error) {
+// NormalizeProjectPath converts an absolute or project-relative path to a
+// slash-separated project-relative path and rejects paths outside the root.
+func NormalizeProjectPath(root, value string) (string, error) {
 	candidate := value
 	if !filepath.IsAbs(candidate) {
 		candidate = filepath.Join(root, candidate)

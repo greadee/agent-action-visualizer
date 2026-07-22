@@ -25,15 +25,20 @@ type AccessInterval struct {
 }
 
 type State struct {
-	SessionID        string           `json:"session_id"`
-	StartedAt        time.Time        `json:"started_at"`
-	StoppedAt        *time.Time       `json:"stopped_at,omitempty"`
-	Paused           bool             `json:"paused"`
-	ActivePath       string           `json:"active_path,omitempty"`
-	ActiveNodeID     string           `json:"active_node_id,omitempty"`
-	PreviousPath     string           `json:"previous_path,omitempty"`
-	SecondaryPaths   []string         `json:"secondary_paths,omitempty"`
-	Intervals        []AccessInterval `json:"intervals"`
+	SessionID        string              `json:"session_id"`
+	StartedAt        time.Time           `json:"started_at"`
+	StoppedAt        *time.Time          `json:"stopped_at,omitempty"`
+	Paused           bool                `json:"paused"`
+	ActivePath       string              `json:"active_path,omitempty"`
+	ActiveNodeID     string              `json:"active_node_id,omitempty"`
+	PreviousPath     string              `json:"previous_path,omitempty"`
+	PreviousNodeID   string              `json:"previous_node_id,omitempty"`
+	SecondaryPaths   []string            `json:"secondary_paths,omitempty"`
+	ActiveOperation  string              `json:"active_operation,omitempty"`
+	ActiveSource     protocol.SourceType `json:"active_source,omitempty"`
+	ActiveConfidence protocol.Confidence `json:"active_confidence,omitempty"`
+	ActiveTimestamp  time.Time           `json:"active_timestamp,omitempty"`
+	Intervals        []AccessInterval    `json:"intervals"`
 	currentPriority  int
 	currentTimestamp time.Time
 }
@@ -99,12 +104,17 @@ func (e *Engine) Apply(event protocol.Event) (State, error) {
 			mergeDelta(current, event)
 		}
 		s.currentPriority, s.currentTimestamp = priority, event.Timestamp
+		s.ActiveOperation, s.ActiveSource = event.Operation, event.SourceType
+		s.ActiveConfidence, s.ActiveTimestamp = event.SourceConfidence, event.Timestamp
+		s.SecondaryPaths = secondaryPaths(event.Metadata)
 		return clone(s), nil
 	}
 	e.closeCurrent(s, event.Timestamp)
-	s.PreviousPath = s.ActivePath
+	s.PreviousPath, s.PreviousNodeID = s.ActivePath, s.ActiveNodeID
 	s.ActivePath, s.ActiveNodeID = event.Path, event.NodeID
 	s.SecondaryPaths = secondaryPaths(event.Metadata)
+	s.ActiveOperation, s.ActiveSource = event.Operation, event.SourceType
+	s.ActiveConfidence, s.ActiveTimestamp = event.SourceConfidence, event.Timestamp
 	s.currentPriority, s.currentTimestamp = priority, event.Timestamp
 	s.Intervals = append(s.Intervals, AccessInterval{Sequence: len(s.Intervals) + 1, NodeID: event.NodeID, Path: event.Path, StartedAt: event.Timestamp, Operations: appendUnique(nil, event.Operation), Source: event.SourceType, Confidence: event.SourceConfidence, AgentID: event.AgentID, LinesAdded: event.LinesAdded, LinesDeleted: event.LinesDeleted})
 	return clone(s), nil
@@ -208,17 +218,36 @@ func mergeDelta(interval *AccessInterval, event protocol.Event) {
 	}
 }
 func secondaryPaths(metadata map[string]interface{}) []string {
-	raw, ok := metadata["secondary_paths"].([]interface{})
+	value, ok := metadata["secondary_paths"]
 	if !ok {
 		return nil
 	}
-	out := make([]string, 0, len(raw))
-	for _, v := range raw {
-		if path, ok := v.(string); ok && path != "" {
+	var out []string
+	switch raw := value.(type) {
+	case []string:
+		out = append(out, raw...)
+	case []interface{}:
+		out = make([]string, 0, len(raw))
+		for _, v := range raw {
+			if path, ok := v.(string); ok && path != "" {
+				out = append(out, path)
+			}
+		}
+	}
+	out = compactPaths(out)
+	sort.Strings(out)
+	return out
+}
+
+func compactPaths(paths []string) []string {
+	out := make([]string, 0, len(paths))
+	seen := make(map[string]bool, len(paths))
+	for _, path := range paths {
+		if path != "" && !seen[path] {
+			seen[path] = true
 			out = append(out, path)
 		}
 	}
-	sort.Strings(out)
 	return out
 }
 func clone(s *State) State {

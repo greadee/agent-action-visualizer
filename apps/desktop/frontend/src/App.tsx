@@ -1,15 +1,19 @@
 import { Canvas } from '@react-three/fiber'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import './App.css'
 import type { ActivityMode } from './activity/extrusions'
 import { useGraphBridge } from './bridge/useGraphBridge'
 import { demoGraph } from './graph/demoGraph'
+import type { LiveFocusState } from './graph/types'
 import { NodeInspector } from './inspector/NodeInspector'
 import { GraphLegend } from './scene/GraphLegend'
 import { GraphScene } from './scene/GraphScene'
 
+const reviewEpoch = Date.parse('2026-07-21T18:00:00Z')
+
 function App() {
   const [selectedId, setSelectedId] = useState('root')
+  const [cameraFocusId, setCameraFocusId] = useState('root')
   const [recenterKey, setRecenterKey] = useState(0)
   const [query, setQuery] = useState('')
   const [showLabels, setShowLabels] = useState(true)
@@ -18,16 +22,107 @@ function App() {
   const [activityMode, setActivityMode] = useState<ActivityMode>('time')
   const [projectPath, setProjectPath] = useState('')
   const [projectError, setProjectError] = useState('')
-  const { graph, loadProject } = useGraphBridge(demoGraph)
+  const [displayedFocus, setDisplayedFocus] = useState<LiveFocusState>()
+  const [autoFollow, setAutoFollow] = useState(true)
+  const [livePaused, setLivePaused] = useState(false)
+  const [manualHold, setManualHold] = useState(false)
+  const [followDelaySeconds, setFollowDelaySeconds] = useState(5)
+  const reviewStep = useRef(0)
+  const reviewStarted = useRef(false)
+  const latestFocus = useRef<LiveFocusState | undefined>(undefined)
+  const { graph, liveFocus, loadProject, publishActivityEvent } =
+    useGraphBridge(demoGraph)
   const selected = graph.nodes.find((node) => node.id === selectedId)
   const matches = query
     ? graph.nodes
         .filter((node) => node.path.toLowerCase().includes(query.toLowerCase()))
         .slice(0, 5)
     : []
+
   useEffect(() => {
     if (!selected && graph.nodes[0]) setSelectedId(graph.nodes[0].id)
   }, [graph.nodes, selected])
+
+  useEffect(() => {
+    latestFocus.current = liveFocus
+  }, [liveFocus])
+
+  useEffect(() => {
+    if (livePaused || !liveFocus) return
+    setDisplayedFocus(liveFocus)
+    if (autoFollow && !manualHold && liveFocus.active_node_id) {
+      setCameraFocusId(liveFocus.active_node_id)
+      setSelectedId(liveFocus.active_node_id)
+    }
+  }, [autoFollow, liveFocus, livePaused, manualHold])
+
+  useEffect(() => {
+    if (!manualHold || !autoFollow || livePaused) return
+    const timer = window.setTimeout(() => {
+      setManualHold(false)
+      if (latestFocus.current?.active_node_id) {
+        setCameraFocusId(latestFocus.current.active_node_id)
+        setSelectedId(latestFocus.current.active_node_id)
+      }
+    }, followDelaySeconds * 1000)
+    return () => window.clearTimeout(timer)
+  }, [autoFollow, followDelaySeconds, livePaused, manualHold])
+
+  function inspectNode(id: string) {
+    setSelectedId(id)
+    setCameraFocusId(id)
+    if (autoFollow && !livePaused) setManualHold(true)
+  }
+
+  function returnToLive() {
+    setLivePaused(false)
+    setManualHold(false)
+    setDisplayedFocus(liveFocus)
+    if (liveFocus?.active_node_id) {
+      setSelectedId(liveFocus.active_node_id)
+      setCameraFocusId(liveFocus.active_node_id)
+    }
+  }
+
+  async function advanceReviewFocus() {
+    const candidates = graph.nodes.filter(
+      (node) => node.kind !== 'root' && node.kind !== 'directory',
+    )
+    if (candidates.length === 0) return
+    const step = reviewStep.current
+    const timestamp = new Date(reviewEpoch + step * 1000).toISOString()
+    if (!reviewStarted.current) {
+      await publishActivityEvent({
+        schema_version: '1.0',
+        event_id: 'p4-s2-review-start',
+        session_id: 'p4-s2-review',
+        source_type: 'synthetic',
+        source_confidence: 'exact',
+        event_type: 'session_started',
+        timestamp,
+      })
+      reviewStarted.current = true
+    }
+    const active = candidates[step % candidates.length]!
+    const secondary = [
+      candidates[(step + 1) % candidates.length]!,
+      candidates[(step + 2) % candidates.length]!,
+    ].filter((node) => node.id !== active.id)
+    await publishActivityEvent({
+      schema_version: '1.0',
+      event_id: `p4-s2-review-${step}`,
+      session_id: 'p4-s2-review',
+      source_type: 'synthetic',
+      source_confidence: 'exact',
+      event_type: step % 2 === 0 ? 'file_patched' : 'file_read',
+      operation: step % 2 === 0 ? 'patch' : 'read',
+      timestamp: new Date(reviewEpoch + (step + 1) * 1000).toISOString(),
+      path: active.path,
+      metadata: { secondary_paths: secondary.map((node) => node.path) },
+    })
+    reviewStep.current += 1
+  }
+
   return (
     <main className="shell">
       <header className="topbar">
@@ -80,7 +175,7 @@ function App() {
                   key={node.id}
                   type="button"
                   onClick={() => {
-                    setSelectedId(node.id)
+                    inspectNode(node.id)
                     setQuery('')
                   }}
                 >
@@ -89,6 +184,67 @@ function App() {
               ))}
             </div>
           )}
+          <div className="rule" />
+          <p className="panel__label">LIVE FOCUS</p>
+          <div className="focus-readout" aria-live="polite">
+            <span
+              className={`live-state live-state--${livePaused ? 'paused' : manualHold ? 'manual' : 'live'}`}
+            >
+              {livePaused ? 'PAUSED' : manualHold ? 'INSPECTING' : 'LIVE'}
+            </span>
+            <strong>
+              {displayedFocus?.active_path ?? 'Waiting for focus event'}
+            </strong>
+            <small>
+              {displayedFocus?.operation
+                ? `${displayedFocus.operation} · ${displayedFocus.confidence ?? 'unknown'}`
+                : 'No current operation'}
+            </small>
+          </div>
+          <label className="toggle">
+            <input
+              aria-label="Auto-follow"
+              type="checkbox"
+              checked={autoFollow}
+              onChange={(event) => {
+                setAutoFollow(event.target.checked)
+                setManualHold(false)
+                if (event.target.checked && !livePaused) returnToLive()
+              }}
+            />
+            Auto-follow active file
+          </label>
+          <label className="follow-delay">
+            Resume after
+            <input
+              aria-label="Auto-follow delay seconds"
+              type="number"
+              min="1"
+              max="60"
+              value={followDelaySeconds}
+              onChange={(event) =>
+                setFollowDelaySeconds(
+                  Math.min(60, Math.max(1, Number(event.target.value) || 1)),
+                )
+              }
+            />
+            sec
+          </label>
+          <div className="live-actions">
+            <button
+              type="button"
+              onClick={() =>
+                livePaused ? returnToLive() : setLivePaused(true)
+              }
+            >
+              {livePaused ? 'Return live' : 'Pause updates'}
+            </button>
+            {import.meta.env.DEV && (
+              <button type="button" onClick={() => void advanceReviewFocus()}>
+                Next review event
+              </button>
+            )}
+          </div>
           <div className="rule" />
           <p className="panel__label">MODE</p>
           <div className="segmented" aria-label="Activity mode">
@@ -151,15 +307,30 @@ function App() {
               showStructure={showStructure}
               showActivity={showActivity}
               activityMode={activityMode}
-              onSelect={setSelectedId}
+              focusState={displayedFocus}
+              cameraFocusId={cameraFocusId}
+              onSelect={inspectNode}
+              onManualInteraction={() => {
+                if (autoFollow && !livePaused) setManualHold(true)
+              }}
             />
           </Canvas>
           <button
             className="recenter"
             type="button"
-            onClick={() => setRecenterKey((value) => value + 1)}
+            onClick={() => {
+              const active = displayedFocus?.active_node_id
+              if (active) {
+                setCameraFocusId(active)
+                setSelectedId(active)
+                setManualHold(false)
+              }
+              setRecenterKey((value) => value + 1)
+            }}
           >
-            Recenter selection
+            {displayedFocus?.active_node_id
+              ? 'Recenter active file'
+              : 'Recenter selection'}
           </button>
           <div className="empty-state">
             <p className="empty-state__title">

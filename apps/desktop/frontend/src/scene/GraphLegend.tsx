@@ -31,6 +31,15 @@ export function GraphLegend({ activityMode }: { activityMode: ActivityMode }) {
         outward line = reported {activityMode}
       </span>
       <span className="legend__wide">Proximity = latest Git involvement</span>
+      <span>
+        <i style={{ background: '#35ffd2' }} /> current
+      </span>
+      <span>
+        <i style={{ background: '#ffb45f' }} /> previous
+      </span>
+      <span className="legend__wide">
+        <i style={{ background: '#d59aff' }} /> secondary-active
+      </span>
     </div>
   )
 }

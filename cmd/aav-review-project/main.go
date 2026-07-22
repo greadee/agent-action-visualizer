@@ -8,6 +8,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"time"
+
+	protocol "github.com/greadee/agent-action-visualizer/protocol/go"
 )
 
 type fileActivity struct {
@@ -109,7 +112,40 @@ func generate(root string) error {
 	if err != nil {
 		return err
 	}
-	return writeFiles(root, map[string]string{".aav/activity-v1.json": string(data) + "\n"})
+	base := time.Date(2026, 6, 12, 16, 20, 0, 0, time.UTC)
+	focusEvents := []protocol.Event{
+		reviewEvent("focus-start", protocol.EventSessionStarted, "", base, nil),
+		reviewEvent("focus-dashboard", protocol.EventFilePatched, "src/ui/Dashboard.tsx", base.Add(time.Second), []string{"src/ui/Graph.tsx", "src/ui/theme.css"}),
+		reviewEvent("focus-graph", protocol.EventFileRead, "src/ui/Graph.tsx", base.Add(2*time.Second), []string{"src/ui/Dashboard.tsx", "tests/parser.test.ts"}),
+		reviewEvent("focus-parser", protocol.EventFileModified, "src/core/parser.ts", base.Add(3*time.Second), []string{"src/core/model.ts", "tests/parser.test.ts"}),
+	}
+	focusData, err := json.MarshalIndent(focusEvents, "", "  ")
+	if err != nil {
+		return err
+	}
+	return writeFiles(root, map[string]string{
+		".aav/activity-v1.json":     string(data) + "\n",
+		".aav/focus-review-v1.json": string(focusData) + "\n",
+	})
+}
+
+func reviewEvent(id string, eventType protocol.EventType, path string, at time.Time, secondary []string) protocol.Event {
+	metadata := map[string]interface{}(nil)
+	if len(secondary) > 0 {
+		metadata = map[string]interface{}{"secondary_paths": secondary}
+	}
+	return protocol.Event{
+		SchemaVersion:    protocol.SchemaVersion,
+		EventID:          id,
+		SessionID:        "review-live-focus",
+		SourceType:       protocol.SourceSynthetic,
+		SourceConfidence: protocol.ConfidenceExact,
+		EventType:        eventType,
+		Operation:        string(eventType),
+		Timestamp:        at,
+		Path:             path,
+		Metadata:         metadata,
+	}
 }
 
 func writeFiles(root string, files map[string]string) error {

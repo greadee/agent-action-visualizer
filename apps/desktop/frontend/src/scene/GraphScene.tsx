@@ -4,7 +4,14 @@ import { Color, InstancedMesh, Matrix4, Vector3 } from 'three'
 import { buildExtrusions, type ActivityMode } from '../activity/extrusions'
 import { CameraFocusController } from '../camera/CameraFocusController'
 import { nodeColors } from '../graph/palette'
-import type { GraphSnapshot } from '../graph/types'
+import type { GraphSnapshot, LiveFocusState } from '../graph/types'
+import { focusRoleForNode } from './focusState'
+
+const focusColors = {
+  current: '#35ffd2',
+  previous: '#ffb45f',
+  secondary: '#d59aff',
+}
 export function GraphScene({
   graph,
   selectedId,
@@ -13,7 +20,10 @@ export function GraphScene({
   showStructure,
   showActivity,
   activityMode,
+  focusState,
+  cameraFocusId,
   onSelect,
+  onManualInteraction,
 }: {
   graph: GraphSnapshot
   selectedId?: string
@@ -22,23 +32,44 @@ export function GraphScene({
   showStructure: boolean
   showActivity: boolean
   activityMode: ActivityMode
+  focusState?: LiveFocusState
+  cameraFocusId?: string
   onSelect: (id: string) => void
+  onManualInteraction: () => void
 }) {
   const mesh = useRef<InstancedMesh>(null)
   const activityPoints = useRef<InstancedMesh>(null)
   const [hovered, setHovered] = useState<number>()
   const selected = graph.nodes.find((n) => n.id === selectedId)
+  const cameraFocus = graph.nodes.find((n) => n.id === cameraFocusId)
   useLayoutEffect(() => {
     const matrix = new Matrix4()
     graph.nodes.forEach((node, index) => {
       matrix.makeTranslation(...node.position)
-      const scale =
+      const focusRole = focusRoleForNode(node.id, focusState)
+      const isCurrent = focusRole === 'current'
+      const isPrevious = focusRole === 'previous'
+      const isSecondary = focusRole === 'secondary'
+      const baseScale =
         node.kind === 'root' ? 1.7 : node.kind === 'directory' ? 1.3 : 1
+      const scale =
+        baseScale *
+        (isCurrent ? 1.65 : isPrevious ? 1.32 : isSecondary ? 1.22 : 1)
       matrix.scale(new Vector3(scale, scale, scale))
       mesh.current?.setMatrixAt(index, matrix)
       mesh.current?.setColorAt(
         index,
-        new Color(node.id === selectedId ? '#ffffff' : nodeColors[node.kind]),
+        new Color(
+          isCurrent
+            ? focusColors.current
+            : isPrevious
+              ? focusColors.previous
+              : isSecondary
+                ? focusColors.secondary
+                : node.id === selectedId
+                  ? '#ffffff'
+                  : nodeColors[node.kind],
+        ),
       )
     })
     if (mesh.current) {
@@ -46,7 +77,7 @@ export function GraphScene({
       if (mesh.current.instanceColor)
         mesh.current.instanceColor.needsUpdate = true
     }
-  }, [graph, selectedId])
+  }, [focusState, graph, selectedId])
   const positions = useMemo(() => {
     const byId = new Map(graph.nodes.map((n) => [n.id, n.position]))
     return new Float32Array(
@@ -148,8 +179,9 @@ export function GraphScene({
         </Html>
       )}
       <CameraFocusController
-        focus={selected?.position}
+        focus={cameraFocus?.position}
         recenterKey={recenterKey}
+        onManualInteraction={onManualInteraction}
       />
     </>
   )

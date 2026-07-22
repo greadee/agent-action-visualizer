@@ -73,3 +73,28 @@ func TestIdleTimeoutCapsDuration(t *testing.T) {
 		t.Fatalf("idle inflated: %s", state.Intervals[0].Duration)
 	}
 }
+
+func TestFocusStateCarriesOperationAndSecondaryPaths(t *testing.T) {
+	base := time.Unix(1000, 0)
+	engine := NewEngine(time.Minute)
+	start(t, engine, "s", base)
+	first := ev("s", protocol.EventFileRead, "a.go", base.Add(time.Second), protocol.ConfidenceObserved)
+	first.NodeID = "node-a"
+	engine.Apply(first)
+	next := ev("s", protocol.EventFilePatched, "b.go", base.Add(2*time.Second), protocol.ConfidenceExact)
+	next.NodeID = "node-b"
+	next.Metadata = map[string]interface{}{"secondary_paths": []string{"c.go", "c.go", "a.go"}}
+	state, err := engine.Apply(next)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state.ActiveNodeID != "node-b" || state.PreviousNodeID != "node-a" {
+		t.Fatalf("node state not retained: %+v", state)
+	}
+	if state.ActiveOperation != string(protocol.EventFilePatched) || state.ActiveConfidence != protocol.ConfidenceExact || !state.ActiveTimestamp.Equal(next.Timestamp) {
+		t.Fatalf("active event details not retained: %+v", state)
+	}
+	if len(state.SecondaryPaths) != 2 || state.SecondaryPaths[0] != "a.go" || state.SecondaryPaths[1] != "c.go" {
+		t.Fatalf("secondary paths not normalized: %#v", state.SecondaryPaths)
+	}
+}

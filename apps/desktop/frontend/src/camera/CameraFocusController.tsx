@@ -24,9 +24,11 @@ interface Transition {
 export function CameraFocusController({
   focus,
   recenterKey,
+  onManualInteraction,
 }: {
   focus?: Vec3
   recenterKey: number
+  onManualInteraction: () => void
 }) {
   const controls = useRef<OrbitControlsImpl>(null)
   const transition = useRef<Transition | undefined>(undefined)
@@ -106,6 +108,7 @@ export function CameraFocusController({
       dampingFactor={0.08}
       onStart={() => {
         transition.current = undefined
+        onManualInteraction()
       }}
     />
   )

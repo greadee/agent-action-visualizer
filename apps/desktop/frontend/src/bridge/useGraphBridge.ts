@@ -1,5 +1,10 @@
 import { useEffect, useState } from 'react'
-import type { GraphPatch, GraphSnapshot } from '../graph/types'
+import type {
+  ActivityEvent,
+  GraphPatch,
+  GraphSnapshot,
+  LiveFocusState,
+} from '../graph/types'
 import { applyGraphPatch } from '../graph/patch'
 
 declare global {
@@ -15,6 +20,9 @@ declare global {
       main?: {
         App?: {
           LoadProject: (root: string) => Promise<GraphSnapshot>
+          PublishActivityEvent: (
+            event: ActivityEvent,
+          ) => Promise<LiveFocusState>
         }
       }
     }
@@ -23,6 +31,7 @@ declare global {
 
 export function useGraphBridge(fallback: GraphSnapshot) {
   const [graph, setGraph] = useState(fallback)
+  const [liveFocus, setLiveFocus] = useState<LiveFocusState>()
   useEffect(() => {
     const events = window.runtime?.EventsOnMultiple
     if (!events) return
@@ -37,9 +46,15 @@ export function useGraphBridge(fallback: GraphSnapshot) {
         setGraph((current) => applyGraphPatch(current, payload as GraphPatch)),
       -1,
     )
+    const offFocus = events(
+      'aav:focus',
+      (payload) => setLiveFocus(payload as LiveFocusState),
+      -1,
+    )
     return () => {
       offSnapshot?.()
       offPatch?.()
+      offFocus?.()
     }
   }, [])
 
@@ -49,5 +64,36 @@ export function useGraphBridge(fallback: GraphSnapshot) {
       throw new Error('Desktop bridge is unavailable in browser preview')
     setGraph(await load(root))
   }
-  return { graph, loadProject }
+
+  async function publishActivityEvent(event: ActivityEvent) {
+    const publish = window.go?.main?.App?.PublishActivityEvent
+    if (publish) {
+      const next = await publish(event)
+      setLiveFocus(next)
+      return
+    }
+    setLiveFocus((current) => {
+      if (event.event_type === 'session_started') {
+        return { session_id: event.session_id }
+      }
+      const active = graph.nodes.find((node) => node.path === event.path)
+      const secondaryPaths = event.metadata?.secondary_paths ?? []
+      return {
+        session_id: event.session_id,
+        active_node_id: active?.id,
+        active_path: event.path,
+        previous_node_id: current?.active_node_id,
+        previous_path: current?.active_path,
+        secondary_node_ids: secondaryPaths
+          .map((path) => graph.nodes.find((node) => node.path === path)?.id)
+          .filter((id): id is string => Boolean(id) && id !== active?.id),
+        secondary_paths: secondaryPaths,
+        operation: event.operation,
+        source: event.source_type,
+        confidence: event.source_confidence,
+        timestamp: event.timestamp,
+      }
+    })
+  }
+  return { graph, liveFocus, loadProject, publishActivityEvent }
 }

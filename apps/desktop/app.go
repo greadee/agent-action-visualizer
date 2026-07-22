@@ -5,10 +5,14 @@ import (
 	"errors"
 	"runtime"
 	"sync"
+	"time"
 
 	"github.com/greadee/agent-action-visualizer/internal/activity"
 	"github.com/greadee/agent-action-visualizer/internal/graph"
+	"github.com/greadee/agent-action-visualizer/internal/ingest"
 	"github.com/greadee/agent-action-visualizer/internal/project"
+	"github.com/greadee/agent-action-visualizer/internal/session"
+	protocol "github.com/greadee/agent-action-visualizer/protocol/go"
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
@@ -18,10 +22,11 @@ type App struct {
 	root     string
 	identity *graph.IdentityRegistry
 	snapshot graph.GraphSnapshot
+	focus    *session.Engine
 }
 
 func NewApp() *App {
-	return &App{}
+	return &App{focus: session.NewEngine(2 * time.Minute)}
 }
 
 func (a *App) startup(ctx context.Context) {
@@ -60,6 +65,20 @@ type graphPatchDTO struct {
 	Edges    []graphEdgeDTO `json:"edges"`
 }
 
+type liveFocusDTO struct {
+	SessionID        string              `json:"session_id"`
+	ActiveNodeID     string              `json:"active_node_id,omitempty"`
+	ActivePath       string              `json:"active_path,omitempty"`
+	PreviousNodeID   string              `json:"previous_node_id,omitempty"`
+	PreviousPath     string              `json:"previous_path,omitempty"`
+	SecondaryNodeIDs []string            `json:"secondary_node_ids,omitempty"`
+	SecondaryPaths   []string            `json:"secondary_paths,omitempty"`
+	Operation        string              `json:"operation,omitempty"`
+	Source           protocol.SourceType `json:"source,omitempty"`
+	Confidence       protocol.Confidence `json:"confidence,omitempty"`
+	Timestamp        time.Time           `json:"timestamp,omitempty"`
+}
+
 // LoadProject scans metadata only, initializes stable identity, and publishes a full graph snapshot.
 func (a *App) LoadProject(root string) (graphSnapshotDTO, error) {
 	a.mu.Lock()
@@ -70,6 +89,7 @@ func (a *App) LoadProject(root string) (graphSnapshotDTO, error) {
 	}
 	a.root = scanned.Root
 	a.identity = graph.NewIdentityRegistry(scanned.Root, runtime.GOOS == "windows")
+	a.focus = session.NewEngine(2 * time.Minute)
 	enriched, err := activity.Enrich(context.Background(), scanned.Root, scanned.Nodes)
 	if err != nil {
 		return graphSnapshotDTO{}, err
@@ -81,6 +101,98 @@ func (a *App) LoadProject(root string) (graphSnapshotDTO, error) {
 		wailsruntime.EventsEmit(a.ctx, "aav:graph:snapshot", result)
 	}
 	return result, nil
+}
+
+// PublishActivityEvent accepts a normalized protocol event, updates session
+// focus, and publishes a compact state for camera and graph consumers.
+func (a *App) PublishActivityEvent(event protocol.Event) (liveFocusDTO, error) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.root == "" || a.identity == nil {
+		return liveFocusDTO{}, errors.New("no project is loaded")
+	}
+	normalized, err := ingest.Normalize(event, a.root)
+	if err != nil {
+		return liveFocusDTO{}, err
+	}
+	if normalized.Path != "" && normalized.NodeID == "" {
+		normalized.NodeID = a.nodeIDForPath(normalized.Path)
+	}
+	if normalized.Metadata != nil {
+		paths, err := a.normalizeSecondaryPaths(normalized.Metadata["secondary_paths"])
+		if err != nil {
+			return liveFocusDTO{}, err
+		}
+		normalized.Metadata["secondary_paths"] = paths
+	}
+	state, err := a.focus.Apply(normalized)
+	if err != nil {
+		return liveFocusDTO{}, err
+	}
+	result := a.liveFocusDTO(state)
+	if a.ctx != nil {
+		wailsruntime.EventsEmit(a.ctx, "aav:focus", result)
+	}
+	return result, nil
+}
+
+func (a *App) normalizeSecondaryPaths(value interface{}) ([]string, error) {
+	var values []string
+	switch raw := value.(type) {
+	case nil:
+		return nil, nil
+	case []string:
+		values = raw
+	case []interface{}:
+		for _, item := range raw {
+			path, ok := item.(string)
+			if !ok {
+				return nil, errors.New("secondary_paths must contain only strings")
+			}
+			values = append(values, path)
+		}
+	default:
+		return nil, errors.New("secondary_paths must be an array")
+	}
+	result := make([]string, 0, len(values))
+	seen := make(map[string]bool, len(values))
+	for _, value := range values {
+		path, err := ingest.NormalizeProjectPath(a.root, value)
+		if err != nil {
+			return nil, errors.New("secondary path escapes selected project")
+		}
+		if !seen[path] {
+			seen[path] = true
+			result = append(result, path)
+		}
+	}
+	return result, nil
+}
+
+func (a *App) nodeIDForPath(path string) string {
+	for _, node := range a.snapshot.Nodes {
+		if node.Path == path {
+			return node.ID
+		}
+	}
+	return ""
+}
+
+func (a *App) liveFocusDTO(state session.State) liveFocusDTO {
+	secondaryIDs := make([]string, 0, len(state.SecondaryPaths))
+	for _, path := range state.SecondaryPaths {
+		if id := a.nodeIDForPath(path); id != "" && id != state.ActiveNodeID {
+			secondaryIDs = append(secondaryIDs, id)
+		}
+	}
+	return liveFocusDTO{
+		SessionID: state.SessionID, ActiveNodeID: state.ActiveNodeID,
+		ActivePath: state.ActivePath, PreviousNodeID: state.PreviousNodeID,
+		PreviousPath: state.PreviousPath, SecondaryNodeIDs: secondaryIDs,
+		SecondaryPaths: state.SecondaryPaths, Operation: state.ActiveOperation,
+		Source: state.ActiveSource, Confidence: state.ActiveConfidence,
+		Timestamp: state.ActiveTimestamp,
+	}
 }
 
 // RefreshProject emits only graph changes after the initial snapshot.

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import App from '../src/App'
 
@@ -17,5 +17,31 @@ describe('App', () => {
     ).toBeTruthy()
     expect(screen.getByLabelText('Graph legend')).toBeTruthy()
     expect(screen.getByText('Absent — static scan')).toBeTruthy()
+  })
+
+  it('advances deterministic focus and freezes the displayed state while paused', async () => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'Next review event' }))
+    await waitFor(() =>
+      expect(
+        screen.getByText('src/App.tsx', { selector: 'strong' }),
+      ).toBeTruthy(),
+    )
+    expect(screen.getByText('patch · exact')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Pause updates' }))
+    expect(screen.getByText('PAUSED')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Next review event' }))
+    await waitFor(() =>
+      expect(
+        screen.getByText('src/App.tsx', { selector: 'strong' }),
+      ).toBeTruthy(),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Return live' }))
+    await waitFor(() =>
+      expect(
+        screen.getByText('src/scene/GraphScene.tsx', { selector: 'strong' }),
+      ).toBeTruthy(),
+    )
+    expect(screen.getByText('read · exact')).toBeTruthy()
   })
 })
