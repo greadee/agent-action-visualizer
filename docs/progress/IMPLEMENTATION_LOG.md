@@ -122,6 +122,20 @@
 - Files changed: deterministic node IDs, case/separator policy, rename aliases, tombstone lifecycle, tests
 - Tests run: `go test ./...` including deterministic IDs, case/separator normalization, rename alias, and tombstone tests
 - Benchmark result: not applicable
-- Commit SHA: pending; recorded in the next slice
+- Commit SHA: `6f61925`
 - Known limitations: cross-rescan content-based rename correlation is deferred; exact adapter renames preserve identity now
 - Next slice: P2-S3 — Layout / implement
+
+## P2-S3 — Layout / implement
+
+- Phase: 2
+- Slice: P2-S3
+- Feature: Layout
+- Action: Implement
+- Status: complete
+- Files changed: deterministic spherical hierarchy, stable prior-position reuse, structure edges, snapshots/patches, tests
+- Tests run: `go test ./...` including deterministic layout, position preservation after additions, hierarchy edges, rename patch behavior
+- Benchmark result: not applicable
+- Commit SHA: pending; recorded in the next slice
+- Known limitations: collision refinement and large-graph LOD are deferred to P9; default positions prioritize stability
+- Next slice: P3-S1 — Renderer / establish
