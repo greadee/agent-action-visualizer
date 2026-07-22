@@ -108,6 +108,20 @@
 - Files changed: root-constrained scanner, default/.gitignore/.aavignore filters, classification, symlink handling, tests
 - Tests run: `go test ./...` including default, `.gitignore`, `.aavignore`, and file classification behavior
 - Benchmark result: not applicable
-- Commit SHA: pending; recorded in the next slice
+- Commit SHA: `2b89892`
 - Known limitations: gitignore negation and the full gitignore grammar are deferred to a dedicated matcher replacement
 - Next slice: P2-S2 — Identity / stabilize
+
+## P2-S2 — Identity / stabilize
+
+- Phase: 2
+- Slice: P2-S2
+- Feature: Identity
+- Action: Stabilize
+- Status: complete
+- Files changed: deterministic node IDs, case/separator policy, rename aliases, tombstone lifecycle, tests
+- Tests run: `go test ./...` including deterministic IDs, case/separator normalization, rename alias, and tombstone tests
+- Benchmark result: not applicable
+- Commit SHA: pending; recorded in the next slice
+- Known limitations: cross-rescan content-based rename correlation is deferred; exact adapter renames preserve identity now
+- Next slice: P2-S3 — Layout / implement
