@@ -8,6 +8,7 @@
 apps/desktop/build/bin/
 apps/desktop/frontend/dist/
 apps/desktop/frontend/wailsjs/
+apps/desktop/frontend/package.json.md5
 
 # JavaScript
 node_modules/
@@ -31,6 +32,7 @@ coverage/
 Thumbs.db
 
 # Diagnostics and temporary source snapshots
+.cache/
 tmp/
 temp/
 *.log

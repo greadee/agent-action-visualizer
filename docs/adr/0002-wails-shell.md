@@ -9,7 +9,7 @@
 The product needs a native desktop lifecycle with a modern web renderer but should avoid bundling a full browser runtime.
 
 ## Decision
-Use stable Wails v2 as the desktop shell and Go/TypeScript bridge.
+Use stable Wails v2.12.0 as the desktop shell and Go/TypeScript bridge.
 
 ## Alternatives
 Electron has a mature ecosystem but a larger runtime. Tauri is capable but would move the core host to Rust.

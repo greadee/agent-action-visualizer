@@ -9,7 +9,7 @@
 The UI combines dense control surfaces, replay state, and a GPU-backed interactive 3D scene.
 
 ## Decision
-Use React 19, TypeScript, Three.js, and React Three Fiber 9 with a small reducer/store boundary.
+Use React 19.2.8, TypeScript 6.0.3, Three.js 0.185.1, and React Three Fiber 9.6.1 with a small reducer/store boundary. Exact versions and lockfiles keep the verified peer set reproducible.
 
 ## Alternatives
 Imperative Three.js alone complicates lifecycle composition; a large application state framework is unnecessary.
