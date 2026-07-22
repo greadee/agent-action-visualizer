@@ -80,6 +80,20 @@
 - Files changed: session lifecycle, focus priority, previous/secondary state, access intervals, idle handling, deterministic tests
 - Tests run: `go test ./...` including active/previous transition, same-timestamp write priority, stable rename identity, session stop, and idle-timeout tests
 - Benchmark result: not applicable
-- Commit SHA: pending; recorded in the next slice
+- Commit SHA: `db2a774`
 - Known limitations: persistence/recovery follows in P1-S4; simultaneous multi-agent focus policy will be expanded with adapter identities
 - Next slice: P1-S4 — Persistence / implement
+
+## P1-S4 — Persistence / implement
+
+- Phase: 1
+- Slice: P1-S4
+- Feature: Persistence
+- Action: Implement
+- Status: complete
+- Files changed: pinned pure-Go SQLite dependency, initial migration, event/session repositories, recovery and restart tests
+- Tests run: `go test ./...` including migrations, idempotent event persistence, database reopen, and active-session recovery
+- Benchmark result: not applicable
+- Commit SHA: pending; recorded in the next slice
+- Known limitations: graph/node repositories are schema-ready and will be filled with P2 graph behavior
+- Next slice: P2-S1 — Scanner / implement
