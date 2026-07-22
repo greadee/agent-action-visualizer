@@ -18,6 +18,14 @@ export interface GraphEdge {
   target: string
 }
 export interface GraphSnapshot {
+  revision?: number
   nodes: GraphNode[]
+  edges: GraphEdge[]
+}
+export interface GraphPatch {
+  revision: number
+  added: GraphNode[]
+  updated: GraphNode[]
+  removed: string[]
   edges: GraphEdge[]
 }

@@ -156,6 +156,10 @@ select {
   color: #7890a7;
   font-size: 12px;
 }
+.error {
+  color: #ff9c9c;
+  font-size: 11px;
+}
 .rule {
   height: 1px;
   margin: 24px 0;

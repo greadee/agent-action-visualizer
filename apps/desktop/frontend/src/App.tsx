@@ -1,6 +1,7 @@
 import { Canvas } from '@react-three/fiber'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import './App.css'
+import { useGraphBridge } from './bridge/useGraphBridge'
 import { demoGraph } from './graph/demoGraph'
 import { NodeInspector } from './inspector/NodeInspector'
 import { GraphLegend } from './scene/GraphLegend'
@@ -12,12 +13,18 @@ function App() {
   const [query, setQuery] = useState('')
   const [showLabels, setShowLabels] = useState(true)
   const [showStructure, setShowStructure] = useState(true)
-  const selected = demoGraph.nodes.find((node) => node.id === selectedId)
+  const [projectPath, setProjectPath] = useState('')
+  const [projectError, setProjectError] = useState('')
+  const { graph, loadProject } = useGraphBridge(demoGraph)
+  const selected = graph.nodes.find((node) => node.id === selectedId)
   const matches = query
-    ? demoGraph.nodes
+    ? graph.nodes
         .filter((node) => node.path.toLowerCase().includes(query.toLowerCase()))
         .slice(0, 5)
     : []
+  useEffect(() => {
+    if (!selected && graph.nodes[0]) setSelectedId(graph.nodes[0].id)
+  }, [graph.nodes, selected])
   return (
     <main className="shell">
       <header className="topbar">
@@ -32,8 +39,26 @@ function App() {
       <section className="workspace" aria-label="Project graph workspace">
         <aside className="panel">
           <p className="panel__label">PROJECT</p>
-          <p className="panel__value">No project selected</p>
-          <button type="button">Open project</button>
+          <input
+            aria-label="Project path"
+            placeholder="Absolute project path"
+            value={projectPath}
+            onChange={(event) => setProjectPath(event.target.value)}
+          />
+          <button
+            type="button"
+            onClick={() => {
+              setProjectError('')
+              void loadProject(projectPath).catch((error: unknown) =>
+                setProjectError(
+                  error instanceof Error ? error.message : String(error),
+                ),
+              )
+            }}
+          >
+            Load project
+          </button>
+          {projectError && <p className="error">{projectError}</p>}
           <div className="rule" />
           <label className="panel__label" htmlFor="node-search">
             SEARCH
@@ -98,7 +123,7 @@ function App() {
           <Canvas camera={{ position: [0, 0, 6], fov: 48 }}>
             <color attach="background" args={['#070a12']} />
             <GraphScene
-              graph={demoGraph}
+              graph={graph}
               selectedId={selectedId}
               recenterKey={recenterKey}
               showLabels={showLabels}

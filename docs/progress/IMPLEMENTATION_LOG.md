@@ -177,6 +177,20 @@
 - Files changed: project/search controls, layout and visibility controls, shared node palette, graph legend, selected-node inspector, responsive panel styling, UI assertions
 - Tests run: Prettier, ESLint, TypeScript, Vitest (4 tests), and Vite production build
 - Benchmark result: production bundle 1,104.67 kB (304.22 kB gzip); code splitting remains a P9 optimization
-- Commit SHA: pending; recorded after push
+- Commit SHA: `f65c69b`
 - Known limitations: activity values correctly report not observed until P4 live events supply evidence; timeline, activity spikes, and session trail belong to later phases
 - Next slice: P4-S1 - Bridge / stream
+
+## P4-S1 - Bridge / stream
+
+- Phase: 4
+- Slice: P4-S1
+- Feature: Bridge
+- Action: Stream
+- Status: complete
+- Files changed: Wails project load/refresh API, metadata-only DTOs, graph snapshot/patch events, revision-aware frontend reducer/subscription, project-path control, cross-layer tests, bridge documentation
+- Tests run: core and desktop Go tests/vet; Prettier, ESLint, TypeScript, Vitest (5 tests), and Vite production build
+- Benchmark result: not applicable
+- Commit SHA: pending; recorded after push
+- Known limitations: refresh is an explicit API call until filesystem/adaptor triggers arrive; native directory-picker UX is deferred while the path-based API remains functional
+- Next slice: P4-S2 - Focus / animate

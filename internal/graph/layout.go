@@ -70,6 +70,7 @@ type Patch struct {
 	Added    []PositionedNode
 	Updated  []PositionedNode
 	Removed  []string
+	Edges    []Edge
 }
 
 func Diff(previous, current GraphSnapshot) Patch {
@@ -81,7 +82,7 @@ func Diff(previous, current GraphSnapshot) Patch {
 	for _, n := range current.Nodes {
 		after[n.ID] = n
 	}
-	patch := Patch{Revision: current.Revision}
+	patch := Patch{Revision: current.Revision, Edges: append([]Edge(nil), current.Edges...)}
 	for id, node := range after {
 		old, ok := before[id]
 		if !ok {
