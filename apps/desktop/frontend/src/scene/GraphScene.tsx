@@ -1,6 +1,7 @@
-import { Html, OrbitControls } from '@react-three/drei'
+import { Html } from '@react-three/drei'
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Color, InstancedMesh, Matrix4, Vector3 } from 'three'
+import { CameraFocusController } from '../camera/CameraFocusController'
 import type { GraphSnapshot } from '../graph/types'
 const colors: Record<string, string> = {
   root: '#e8f6f3',
@@ -15,10 +16,12 @@ const colors: Record<string, string> = {
 export function GraphScene({
   graph,
   selectedId,
+  recenterKey,
   onSelect,
 }: {
   graph: GraphSnapshot
   selectedId?: string
+  recenterKey: number
   onSelect: (id: string) => void
 }) {
   const mesh = useRef<InstancedMesh>(null)
@@ -90,7 +93,10 @@ export function GraphScene({
           <span className="node-label node-label--hover">{hoverNode.path}</span>
         </Html>
       )}
-      <OrbitControls makeDefault enableDamping dampingFactor={0.08} />
+      <CameraFocusController
+        focus={selected?.position}
+        recenterKey={recenterKey}
+      />
     </>
   )
 }

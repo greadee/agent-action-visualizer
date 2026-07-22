@@ -95,6 +95,11 @@ button:focus-visible {
   position: relative;
   min-height: 0;
 }
+.recenter {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+}
 .empty-state {
   position: absolute;
   left: 50%;

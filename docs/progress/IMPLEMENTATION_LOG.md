@@ -150,6 +150,19 @@
 - Files changed: graph types/sample, instanced nodes, buffered hierarchy edges, orbit controls, hover/selection labels, UI test
 - Tests run: Prettier, ESLint, TypeScript, Vitest, and Vite production build
 - Benchmark result: not applicable
-- Commit SHA: pending; recorded in the next slice
+- Commit SHA: `9bc79fb`
 - Known limitations: the scene uses deterministic fixture data until the Go bridge slice; camera focus follows in P3-S2
-- Next slice: P3-S2 — Camera / focus
+
+## P3-S2 - Camera / focus
+
+- Phase: 3
+- Slice: P3-S2
+- Feature: Camera
+- Action: Focus
+- Status: complete
+- Files changed: bounded focus math, quaternion camera controller, manual interruption, recenter action, reduced-motion behavior, formula documentation, unit tests
+- Tests run: Prettier, ESLint, TypeScript, Vitest (4 tests), and Vite production build
+- Benchmark result: not applicable
+- Commit SHA: pending; recorded after push
+- Known limitations: live-event Auto-follow is intentionally deferred to P4-S2; camera behavior is unit-tested mathematically and awaits browser interaction automation in P9
+- Next slice: P3-S3 - UI / inspect

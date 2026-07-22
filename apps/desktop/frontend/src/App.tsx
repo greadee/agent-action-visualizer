@@ -6,6 +6,7 @@ import { GraphScene } from './scene/GraphScene'
 
 function App() {
   const [selectedId, setSelectedId] = useState('app')
+  const [recenterKey, setRecenterKey] = useState(0)
   return (
     <main className="shell">
       <header className="topbar">
@@ -37,9 +38,17 @@ function App() {
             <GraphScene
               graph={demoGraph}
               selectedId={selectedId}
+              recenterKey={recenterKey}
               onSelect={setSelectedId}
             />
           </Canvas>
+          <button
+            className="recenter"
+            type="button"
+            onClick={() => setRecenterKey((value) => value + 1)}
+          >
+            Recenter selection
+          </button>
           <div className="empty-state">
             <p className="empty-state__title">
               Deterministic project hierarchy
