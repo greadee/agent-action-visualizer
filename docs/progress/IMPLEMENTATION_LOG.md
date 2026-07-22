@@ -163,6 +163,20 @@
 - Files changed: bounded focus math, quaternion camera controller, manual interruption, recenter action, reduced-motion behavior, formula documentation, unit tests
 - Tests run: Prettier, ESLint, TypeScript, Vitest (4 tests), and Vite production build
 - Benchmark result: not applicable
-- Commit SHA: pending; recorded after push
+- Commit SHA: `4a99d20`
 - Known limitations: live-event Auto-follow is intentionally deferred to P4-S2; camera behavior is unit-tested mathematically and awaits browser interaction automation in P9
 - Next slice: P3-S3 - UI / inspect
+
+## P3-S3 - UI / inspect
+
+- Phase: 3
+- Slice: P3-S3
+- Feature: UI
+- Action: Inspect
+- Status: complete
+- Files changed: project/search controls, layout and visibility controls, shared node palette, graph legend, selected-node inspector, responsive panel styling, UI assertions
+- Tests run: Prettier, ESLint, TypeScript, Vitest (4 tests), and Vite production build
+- Benchmark result: production bundle 1,104.67 kB (304.22 kB gzip); code splitting remains a P9 optimization
+- Commit SHA: pending; recorded after push
+- Known limitations: activity values correctly report not observed until P4 live events supply evidence; timeline, activity spikes, and session trail belong to later phases
+- Next slice: P4-S1 - Bridge / stream
