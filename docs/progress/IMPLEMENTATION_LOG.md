@@ -191,6 +191,6 @@
 - Files changed: Wails project load/refresh API, metadata-only DTOs, graph snapshot/patch events, revision-aware frontend reducer/subscription, project-path control, cross-layer tests, bridge documentation
 - Tests run: core and desktop Go tests/vet; Prettier, ESLint, TypeScript, Vitest (5 tests), and Vite production build
 - Benchmark result: not applicable
-- Commit SHA: pending; recorded after push
+- Commit SHA: `de38b6f`
 - Known limitations: refresh is an explicit API call until filesystem/adaptor triggers arrive; native directory-picker UX is deferred while the path-based API remains functional
 - Next slice: P4-S2 - Focus / animate
