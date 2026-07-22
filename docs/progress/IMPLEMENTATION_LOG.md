@@ -208,3 +208,17 @@
 - Commit SHA: `1839161`
 - Known limitations: Git rename inference is deliberately not claimed; agent report ingestion is file-based until native adapters publish equivalent events
 - Next slice: paused by user until this graph model is accepted
+
+## P4-S2 - Focus / animate
+
+- Phase: 4
+- Slice: P4-S2
+- Feature: Focus
+- Action: Animate
+- Status: complete
+- Files changed: session focus metadata, root-constrained Wails activity publisher, current/previous/secondary focus styling, Auto-follow/manual inactivity/pause/return-live controls, deterministic focus-review fixture, bridge documentation, and cross-layer tests
+- Tests run: complete core and desktop Go tests/vet; Prettier, ESLint, TypeScript, Vitest (10 tests), Vite production build, Wails Windows production build; in-app browser review of focus transitions, marker overlap priority, pause/return-live, and inactivity resume
+- Benchmark result: production bundle 1,113.29 kB (306.86 kB gzip); rendering remains instanced and focus changes update existing instances
+- Commit SHA: `823e8d2`
+- Known limitations: native adapters must still call `PublishActivityEvent`; the ordered session trail belongs to P4-S3 and was intentionally not started
+- Next slice: paused per user; do not proceed beyond P4-S2
