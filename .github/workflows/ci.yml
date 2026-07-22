@@ -18,11 +18,7 @@ jobs:
           go-version: '1.26.3'
           cache-dependency-path: apps/desktop/go.sum
       - run: go test ./...
-      - working-directory: apps/desktop
-        run: go test .
       - run: go vet ./...
-      - working-directory: apps/desktop
-        run: go vet .
 
   frontend:
     runs-on: ubuntu-latest
@@ -42,3 +38,26 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-frontend-dist
+          path: apps/desktop/frontend/dist
+          retention-days: 1
+
+  desktop:
+    needs: [go, frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.26.3'
+          cache-dependency-path: apps/desktop/go.sum
+      - uses: actions/download-artifact@v4
+        with:
+          name: desktop-frontend-dist
+          path: apps/desktop/frontend/dist
+      - working-directory: apps/desktop
+        run: go test .
+      - working-directory: apps/desktop
+        run: go vet .
