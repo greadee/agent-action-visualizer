@@ -1,0 +1,81 @@
+# Architecture
+
+## Goals and constraints
+
+Agent Action Visualizer is a local-first observability system. It converts deterministic development events into a stable repository graph, session state, and replayable activity geometry. It does not call an AI API, change an agent prompt, or require model-visible reporting.
+
+The system is split so a renderer, adapter, persistence engine, or transport can change independently. Every event carries provenance and confidence. Adapters fail open: collector failure can lose visualization data, but cannot alter an agent decision, output, exit code, or working file.
+
+## System boundaries
+
+```text
+agent/editor/fs/git
+       |
+       v
+adapter -> local authenticated transport -> bounded ingress queue
+                                            |
+                                            v
+                         validate -> normalize -> deduplicate
+                                            |
+                  +-------------------------+-----------------------+
+                  |                         |                       |
+                  v                         v                       v
+             session engine          graph service          async diff workers
+                  |                         |                       |
+                  +-------------------------+-----------------------+
+                                            |
+                                            v
+                                          SQLite
+                                            |
+                              snapshot + incremental event stream
+                                            |
+                                            v
+                           Wails bridge -> React/R3F renderer
+```
+
+## Event lifecycle
+
+1. An adapter receives a supported native event or observes a local change.
+2. It performs bounded parsing, adds adapter metadata, submits a versioned envelope, and exits successfully without output.
+3. Local IPC authenticates and size-limits the envelope, then offers it to a bounded priority queue.
+4. The normalizer resolves the project root, canonical relative paths, source/confidence, and stable identity.
+5. Deduplication and pre/post correlation enrich the event without rewriting raw evidence.
+6. The session engine applies active-file priority, closes/open access intervals, and caps idle time.
+7. Graph changes and line-delta work are scheduled asynchronously.
+8. One storage worker persists ordered state in SQLite; raw source contents are not stored by default.
+9. The publisher emits sanitized graph patches and session updates through Wails events.
+10. The renderer consumes normalized state only; it never parses raw tool or terminal output.
+
+## Core packages
+
+- `protocol/`: versioned JSON Schema plus Go and TypeScript contract types.
+- `internal/ingest`: validation, bounded queueing, deduplication, and normalization.
+- `internal/session`: lifecycle, focus priority, access intervals, idle handling, and replay state.
+- `internal/project`: safe scanning and ignore handling.
+- `internal/graph`: stable identities, hierarchy, deterministic layout, snapshots, and patches.
+- `internal/diff`: asynchronous structured-patch, snapshot, and Git numstat delta sources.
+- `internal/store`: migrations and repositories over pure-Go SQLite.
+- `internal/ipc`: local transport, authentication, payload limits, and frontend publication.
+- `internal/adapters`: Codex, generic process, filesystem/Git, and optional integrations.
+- `apps/desktop`: Wails lifecycle and a React/TypeScript/Three.js presentation layer.
+
+## Active-file resolution
+
+Candidates are ordered by evidence, operation, and recency: explicit native file events; structured tool events; correlated command/filesystem events; recent high-confidence writes; then recent observations. Writes, patches, creates, moves, and deletes outrank reads at equal evidence. A move preserves identity; a delete uses a temporary tombstone. Focus changes close the prior access interval and retain the previous node.
+
+## Failure and overload behavior
+
+- Hook adapters use short local deadlines, emit no stdout/stderr on ordinary failure, and always exit zero.
+- The ingress queue is bounded. It coalesces duplicate reads first, then drops low-confidence/read activity before create/write/move/delete/session events.
+- SQLite and diff work occur off the adapter critical path.
+- Invalid versions, oversized payloads, path traversal, and out-of-root paths are rejected and diagnosed locally.
+- Renderer disconnects do not stop collection. Reconnection requests a fresh snapshot followed by patches.
+- Recovery closes stale open intervals at the last trustworthy timestamp and marks them recovered.
+
+## Data retention and privacy
+
+The default database contains relative paths, normalized metadata, timestamps, counts, hashes where needed, and redacted command/tool labels. It does not contain source contents, environment variables, prompts, model responses, credentials, or telemetry. Temporary before/after snapshots are opt-in, constrained to the selected root, and deleted after delta calculation.
+
+## Renderer model
+
+Directory depth maps to stable shells. Hash-derived angular slots keep sibling positions stable across rescans. Instanced nodes and activity points minimize draw calls; structural and session-trail edges use buffer geometry. Activity anchors follow a deterministic Fibonacci distribution. Additions project along the outward radial vector; deletions project against it. Camera focus uses quaternion interpolation without relayout and yields to manual controls.
