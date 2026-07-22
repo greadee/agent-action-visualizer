@@ -120,7 +120,7 @@
 - Action: Stabilize
 - Status: complete
 - Files changed: deterministic node IDs, case/separator policy, rename aliases, tombstone lifecycle, tests
-- Tests run: `go test ./...` including deterministic IDs, case/separator normalization, rename alias, and tombstone tests
+- Tests run: `go test ./...` including deterministic IDs, case/separator normalization, rename alias, and tombstone tests; CI exposed and a follow-up fix canonicalized Windows separators before OS-specific cleaning
 - Benchmark result: not applicable
 - Commit SHA: `6f61925`
 - Known limitations: cross-rescan content-based rename correlation is deferred; exact adapter renames preserve identity now

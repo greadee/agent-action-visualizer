@@ -3,6 +3,7 @@ package graph
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	pathpkg "path"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -71,7 +72,7 @@ func (r *IdentityRegistry) Aliases(id string) []string {
 	return append([]string(nil), r.aliases[id]...)
 }
 func (r *IdentityRegistry) key(path string) string {
-	key := filepath.ToSlash(filepath.Clean(path))
+	key := pathpkg.Clean(strings.ReplaceAll(path, "\\", "/"))
 	if r.caseFold {
 		key = strings.ToLower(key)
 	}
