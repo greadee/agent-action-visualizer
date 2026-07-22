@@ -114,3 +114,21 @@ button:focus-visible {
   margin: 0;
   font-size: 12px;
 }
+.node-label {
+  display: inline-block;
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 5px 8px;
+  border: 1px solid #4b6b7d;
+  border-radius: 6px;
+  color: #eefaf7;
+  background: #0a1019e8;
+  font-size: 11px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.node-label--hover {
+  color: #a8bac8;
+  border-color: #263d4e;
+}

@@ -136,6 +136,20 @@
 - Files changed: deterministic spherical hierarchy, stable prior-position reuse, structure edges, snapshots/patches, tests
 - Tests run: `go test ./...` including deterministic layout, position preservation after additions, hierarchy edges, rename patch behavior
 - Benchmark result: not applicable
-- Commit SHA: pending; recorded in the next slice
+- Commit SHA: `40e47b8`
 - Known limitations: collision refinement and large-graph LOD are deferred to P9; default positions prioritize stability
 - Next slice: P3-S1 — Renderer / establish
+
+## P3-S1 — Renderer / establish
+
+- Phase: 3
+- Slice: P3-S1
+- Feature: Renderer
+- Action: Establish
+- Status: complete
+- Files changed: graph types/sample, instanced nodes, buffered hierarchy edges, orbit controls, hover/selection labels, UI test
+- Tests run: Prettier, ESLint, TypeScript, Vitest, and Vite production build
+- Benchmark result: not applicable
+- Commit SHA: pending; recorded in the next slice
+- Known limitations: the scene uses deterministic fixture data until the Go bridge slice; camera focus follows in P3-S2
+- Next slice: P3-S2 — Camera / focus

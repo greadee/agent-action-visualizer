@@ -1,7 +1,11 @@
 import { Canvas } from '@react-three/fiber'
+import { useState } from 'react'
 import './App.css'
+import { demoGraph } from './graph/demoGraph'
+import { GraphScene } from './scene/GraphScene'
 
 function App() {
+  const [selectedId, setSelectedId] = useState('app')
   return (
     <main className="shell">
       <header className="topbar">
@@ -30,18 +34,17 @@ function App() {
         <div className="viewport">
           <Canvas camera={{ position: [0, 0, 6], fov: 48 }}>
             <color attach="background" args={['#070a12']} />
-            <ambientLight intensity={0.7} />
-            <pointLight position={[4, 5, 6]} intensity={30} color="#8cf5df" />
-            <mesh>
-              <icosahedronGeometry args={[1.25, 2]} />
-              <meshStandardMaterial color="#123d4a" wireframe />
-            </mesh>
+            <GraphScene
+              graph={demoGraph}
+              selectedId={selectedId}
+              onSelect={setSelectedId}
+            />
           </Canvas>
           <div className="empty-state">
             <p className="empty-state__title">
-              Open a repository to build its graph
+              Deterministic project hierarchy
             </p>
-            <p>Source stays on this machine. No AI API or telemetry is used.</p>
+            <p>Orbit, zoom, and select a node. Source stays on this machine.</p>
           </div>
         </div>
       </section>

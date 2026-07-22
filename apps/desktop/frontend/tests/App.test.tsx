@@ -9,9 +9,7 @@ vi.mock('@react-three/fiber', () => ({
 describe('App', () => {
   it('identifies the local-only empty state', () => {
     render(<App />)
-    expect(
-      screen.getByText('Open a repository to build its graph'),
-    ).toBeTruthy()
-    expect(screen.getByText(/No AI API or telemetry/)).toBeTruthy()
+    expect(screen.getByText('Deterministic project hierarchy')).toBeTruthy()
+    expect(screen.getByText(/Source stays on this machine/)).toBeTruthy()
   })
 })
