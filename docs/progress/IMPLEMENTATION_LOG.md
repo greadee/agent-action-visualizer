@@ -66,6 +66,20 @@
 - Files changed: bounded priority queue, asynchronous collector, path normalization, deduper, tests/benchmark, mock-event CLI
 - Tests run: `go test ./...`; mock-event CLI validated against the normalized v1 fixture
 - Benchmark result: `BenchmarkQueueOffer` 21.36 ns/op on Windows/amd64 Ryzen 5 9600X (100 ms benchtime); queue-only measurement, not persistent IPC
-- Commit SHA: pending; recorded in the next slice
+- Commit SHA: `4720e54`
 - Known limitations: native pipe/socket transport is deferred to its platform slice; this slice establishes the transport-independent collector boundary
 - Next slice: P1-S3 — Session / implement
+
+## P1-S3 — Session / implement
+
+- Phase: 1
+- Slice: P1-S3
+- Feature: Session
+- Action: Implement
+- Status: complete
+- Files changed: session lifecycle, focus priority, previous/secondary state, access intervals, idle handling, deterministic tests
+- Tests run: `go test ./...` including active/previous transition, same-timestamp write priority, stable rename identity, session stop, and idle-timeout tests
+- Benchmark result: not applicable
+- Commit SHA: pending; recorded in the next slice
+- Known limitations: persistence/recovery follows in P1-S4; simultaneous multi-agent focus policy will be expanded with adapter identities
+- Next slice: P1-S4 — Persistence / implement
