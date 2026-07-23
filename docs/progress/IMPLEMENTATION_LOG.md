@@ -236,3 +236,17 @@
 - Commit SHA: `b4d163e`
 - Known limitations: transitions whose nodes are absent from the current graph are omitted; the replay cursor/timeline belongs to P8, and per-access activity points begin in P5-S1
 - Next slice: P5-S1 - Access points / render
+
+## P5-S1 - Access points / render
+
+- Phase: 5
+- Slice: P5-S1
+- Feature: Access points
+- Action: Render
+- Status: complete
+- Files changed: deterministic per-access surface anchors, dense-history aggregation, instanced access-point renderer and hover metadata, independent control and legend, dense review fixture, documentation, and unit/UI tests
+- Tests run: complete core and desktop Go tests/vet; Prettier, ESLint, TypeScript, Vitest (18 tests), Vite production build, Wails Windows production build; in-app browser review of a 60-access dense session and the independent access-points control
+- Benchmark result: production bundle 1,122.04 kB (309.36 kB gzip); points remain instanced and dense histories compact older accesses into aggregate markers
+- Commit SHA: `a9cdae1`
+- Known limitations: points carry access metadata only; time-duration growth/scaling is P5-S2 and work/diff representation is P5-S3
+- Next slice: P5-S2 - Time mode / render
