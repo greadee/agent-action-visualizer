@@ -250,3 +250,17 @@
 - Commit SHA: `a9cdae1`
 - Known limitations: points carry access metadata only; time-duration growth/scaling is P5-S2 and work/diff representation is P5-S3
 - Next slice: P5-S2 - Time mode / render
+
+## P5-S2 - Time mode / render
+
+- Phase: 5
+- Slice: P5-S2
+- Feature: Time mode
+- Action: Render
+- Status: complete
+- Files changed: deterministic per-access time-extrusion geometry, bounded linear/logarithmic scale helpers, live active-interval growth capped at the session idle limit, exact-duration tooltip and selected-access inspector treatment, duration review fixture, documentation, and unit/UI tests
+- Tests run: core and desktop Go tests/vet; Prettier, ESLint, TypeScript, Vitest (24 tests), Vite production build, Wails Windows production build; in-app browser review of short, medium, clamped, and active duration intervals in Time mode
+- Benchmark result: production bundle 1,126.39 kB (310.42 kB gzip); time geometry uses one buffered line set and an instanced endpoint mesh
+- Commit SHA: `f898de3`
+- Known limitations: scale selection and user-facing clamp controls are deferred to P5-S4; work additions/deletions remain deferred to P5-S3
+- Next slice: P5-S3 - Work mode / calculate
