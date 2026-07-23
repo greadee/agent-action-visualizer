@@ -222,3 +222,17 @@
 - Commit SHA: `823e8d2`
 - Known limitations: native adapters must still call `PublishActivityEvent`; the ordered session trail belongs to P4-S3 and was intentionally not started
 - Next slice: paused per user; do not proceed beyond P4-S2
+
+## P4-S3 - Trail / visualize
+
+- Phase: 4
+- Slice: P4-S3
+- Feature: Trail
+- Action: Visualize
+- Status: complete
+- Files changed: metadata-only access-trail DTOs, same-path interval reopening after idle, deterministic recency/complete-session selection, buffered recency-colored travel edges, instanced direction markers, hover metadata, older-access node styling, independent controls/legend, documentation, and cross-layer tests
+- Tests run: complete core and desktop Go tests/vet; Prettier, ESLint, TypeScript, Vitest (15 tests), Vite production build, Wails Windows production build; in-app browser review of six ordered accesses, last-three limit, complete-session mode, independent structure/trail visibility, and marker hover metadata
+- Benchmark result: production bundle 1,118.85 kB (308.48 kB gzip); travel lines use one buffer and direction markers remain instanced
+- Commit SHA: `b4d163e`
+- Known limitations: transitions whose nodes are absent from the current graph are omitted; the replay cursor/timeline belongs to P8, and per-access activity points begin in P5-S1
+- Next slice: P5-S1 - Access points / render
