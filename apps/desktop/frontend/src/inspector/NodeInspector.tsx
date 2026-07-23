@@ -1,12 +1,29 @@
-import type { GraphNode } from '../graph/types'
-import { formatDuration, formatTimestamp } from './format'
+import { useEffect, useState } from 'react'
+import { normalizedIntervalDuration } from '../activity/timeExtrusions'
+import type { GraphNode, TrailAccess } from '../graph/types'
+import { formatDuration, formatExactDuration, formatTimestamp } from './format'
 
 function parentPath(path: string): string {
   const separator = path.lastIndexOf('/')
   return separator < 0 ? '.' : path.slice(0, separator)
 }
 
-export function NodeInspector({ node }: { node?: GraphNode }) {
+export function NodeInspector({
+  node,
+  access,
+}: {
+  node?: GraphNode
+  access?: TrailAccess
+}) {
+  const [nowMs, setNowMs] = useState(() => Date.now())
+  useEffect(() => {
+    if (!access || access.ended_at) return
+    const timer = window.setInterval(() => setNowMs(Date.now()), 250)
+    return () => window.clearInterval(timer)
+  }, [access])
+  const accessDuration = access
+    ? normalizedIntervalDuration(access, nowMs)
+    : undefined
   return (
     <aside className="inspector" aria-label="Node inspector">
       <p className="panel__label">INSPECTOR</p>
@@ -58,6 +75,26 @@ export function NodeInspector({ node }: { node?: GraphNode }) {
             <dt>Last involvement</dt>
             <dd>{formatTimestamp(node.activity?.last_commit_at)}</dd>
           </dl>
+          {access && (
+            <>
+              <div className="rule" />
+              <p className="panel__label">SELECTED ACCESS</p>
+              <dl>
+                <dt>Interval</dt>
+                <dd>#{access.sequence}</dd>
+                <dt>Duration</dt>
+                <dd>{formatExactDuration(accessDuration)}</dd>
+                <dt>State</dt>
+                <dd>{access.ended_at ? 'Completed' : 'Active'}</dd>
+                <dt>Operation</dt>
+                <dd>{access.operations.at(-1) ?? 'access'}</dd>
+                <dt>Evidence</dt>
+                <dd>
+                  {access.source} · {access.confidence}
+                </dd>
+              </dl>
+            </>
+          )}
         </>
       )}
     </aside>

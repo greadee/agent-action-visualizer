@@ -17,6 +17,9 @@ describe('App', () => {
     ).toBeTruthy()
     expect(screen.getByLabelText('Graph legend')).toBeTruthy()
     expect(screen.getByRole('checkbox', { name: 'Access points' })).toBeTruthy()
+    expect(
+      screen.getByRole('button', { name: 'Add duration review batch' }),
+    ).toBeTruthy()
     expect(screen.getByText('Absent — static scan')).toBeTruthy()
   })
 

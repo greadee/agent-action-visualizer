@@ -4,7 +4,7 @@ import './App.css'
 import type { ActivityMode } from './activity/extrusions'
 import { useGraphBridge } from './bridge/useGraphBridge'
 import { demoGraph } from './graph/demoGraph'
-import type { LiveFocusState } from './graph/types'
+import type { LiveFocusState, TrailAccess } from './graph/types'
 import { NodeInspector } from './inspector/NodeInspector'
 import { GraphLegend } from './scene/GraphLegend'
 import { GraphScene } from './scene/GraphScene'
@@ -29,6 +29,7 @@ function App() {
   const [projectPath, setProjectPath] = useState('')
   const [projectError, setProjectError] = useState('')
   const [displayedFocus, setDisplayedFocus] = useState<LiveFocusState>()
+  const [selectedAccess, setSelectedAccess] = useState<TrailAccess>()
   const [autoFollow, setAutoFollow] = useState(true)
   const [livePaused, setLivePaused] = useState(false)
   const [manualHold, setManualHold] = useState(false)
@@ -85,6 +86,7 @@ function App() {
 
   function inspectNode(id: string) {
     setSelectedId(id)
+    setSelectedAccess(undefined)
     setCameraFocusId(id)
     if (autoFollow && !livePaused) setManualHold(true)
   }
@@ -164,6 +166,43 @@ function App() {
       })
     }
     reviewStep.current += 60
+  }
+
+  async function addDurationReviewBatch() {
+    const candidates = graph.nodes.filter(
+      (node) => node.kind !== 'root' && node.kind !== 'directory',
+    )
+    if (candidates.length < 3) return
+    const now = Date.now()
+    const sessionID = `p5-duration-review-${now}`
+    const emit = async (
+      eventID: string,
+      nodeIndex: number | undefined,
+      offsetMs: number,
+      operation = 'read',
+    ) =>
+      publishActivityEvent({
+        schema_version: '1.0',
+        event_id: eventID,
+        session_id: sessionID,
+        source_type: 'synthetic',
+        source_confidence: 'exact',
+        event_type:
+          nodeIndex === undefined
+            ? 'session_started'
+            : operation === 'patch'
+              ? 'file_patched'
+              : 'file_read',
+        operation: nodeIndex === undefined ? undefined : operation,
+        timestamp: new Date(now + offsetMs).toISOString(),
+        path: nodeIndex === undefined ? undefined : candidates[nodeIndex]?.path,
+      })
+    await emit('p5-duration-start', undefined, -205_000)
+    await emit('p5-duration-short', 0, -205_000)
+    await emit('p5-duration-medium', 1, -204_000, 'patch')
+    await emit('p5-duration-long', 2, -198_000)
+    await emit('p5-duration-clamped', 0, -5_000, 'patch')
+    await emit('p5-duration-active', 1, -1_000)
   }
 
   return (
@@ -292,6 +331,12 @@ function App() {
                   onClick={() => void addDenseReviewBatch()}
                 >
                   Add dense review batch
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void addDurationReviewBatch()}
+                >
+                  Add duration review batch
                 </button>
               </>
             )}
@@ -434,6 +479,10 @@ function App() {
               focusState={displayedFocus}
               cameraFocusId={cameraFocusId}
               onSelect={inspectNode}
+              onInspectAccess={(access) => {
+                setSelectedAccess(access)
+                setSelectedId(access.node_id ?? '')
+              }}
               onManualInteraction={() => {
                 if (autoFollow && !livePaused) setManualHold(true)
               }}
@@ -463,7 +512,7 @@ function App() {
             <p>Orbit, zoom, and select a node. Source stays on this machine.</p>
           </div>
         </div>
-        <NodeInspector node={selected} />
+        <NodeInspector node={selected} access={selectedAccess} />
       </section>
     </main>
   )

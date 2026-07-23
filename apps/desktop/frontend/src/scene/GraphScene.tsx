@@ -1,13 +1,14 @@
 import { Html } from '@react-three/drei'
-import { useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Color, InstancedMesh, Matrix4, Vector3 } from 'three'
 import { buildExtrusions, type ActivityMode } from '../activity/extrusions'
 import { CameraFocusController } from '../camera/CameraFocusController'
 import { nodeColors } from '../graph/palette'
-import type { GraphSnapshot, LiveFocusState } from '../graph/types'
+import type { GraphSnapshot, LiveFocusState, TrailAccess } from '../graph/types'
 import { focusRoleForNode } from './focusState'
 import { AccessPoints } from './AccessPoints'
 import { SessionTrail } from './SessionTrail'
+import { TimeExtrusions } from './TimeExtrusions'
 import { selectTrailAccesses, type TrailOptions } from './trail'
 
 const focusColors = {
@@ -32,6 +33,7 @@ export function GraphScene({
   focusState,
   cameraFocusId,
   onSelect,
+  onInspectAccess,
   onManualInteraction,
 }: {
   graph: GraphSnapshot
@@ -49,11 +51,13 @@ export function GraphScene({
   focusState?: LiveFocusState
   cameraFocusId?: string
   onSelect: (id: string) => void
+  onInspectAccess: (access: TrailAccess) => void
   onManualInteraction: () => void
 }) {
   const mesh = useRef<InstancedMesh>(null)
   const activityPoints = useRef<InstancedMesh>(null)
   const [hovered, setHovered] = useState<number>()
+  const [nowMs, setNowMs] = useState(() => Date.now())
   const selected = graph.nodes.find((n) => n.id === selectedId)
   const cameraFocus = graph.nodes.find((n) => n.id === cameraFocusId)
   const trailOptions = useMemo<TrailOptions>(
@@ -132,6 +136,14 @@ export function GraphScene({
     () => buildExtrusions(graph.nodes, activityMode),
     [activityMode, graph.nodes],
   )
+  const hasActiveTimeInterval =
+    activityMode === 'time' &&
+    Boolean(focusState?.trail.some((access) => !access.ended_at))
+  useEffect(() => {
+    if (!hasActiveTimeInterval) return
+    const timer = window.setInterval(() => setNowMs(Date.now()), 250)
+    return () => window.clearInterval(timer)
+  }, [hasActiveTimeInterval])
   const activityPositions = useMemo(
     () =>
       new Float32Array(
@@ -168,7 +180,15 @@ export function GraphScene({
           <lineBasicMaterial color="#294154" transparent opacity={0.72} />
         </lineSegments>
       )}
-      {showActivity && extrusions.length > 0 && (
+      {showActivity && activityMode === 'time' && (
+        <TimeExtrusions
+          nodes={graph.nodes}
+          trail={focusState?.trail ?? []}
+          nowMs={nowMs}
+          onInspect={onInspectAccess}
+        />
+      )}
+      {showActivity && activityMode === 'work' && extrusions.length > 0 && (
         <>
           <lineSegments>
             <bufferGeometry>
@@ -177,18 +197,14 @@ export function GraphScene({
                 args={[activityPositions, 3]}
               />
             </bufferGeometry>
-            <lineBasicMaterial
-              color={activityMode === 'time' ? '#ffb45f' : '#5ce0c4'}
-            />
+            <lineBasicMaterial color="#5ce0c4" />
           </lineSegments>
           <instancedMesh
             ref={activityPoints}
             args={[undefined, undefined, extrusions.length]}
           >
             <sphereGeometry args={[0.12, 10, 10]} />
-            <meshBasicMaterial
-              color={activityMode === 'time' ? '#ffd096' : '#9affea'}
-            />
+            <meshBasicMaterial color="#9affea" />
           </instancedMesh>
         </>
       )}
@@ -212,8 +228,9 @@ export function GraphScene({
         onPointerOut={() => setHovered(undefined)}
         onClick={(e) => {
           e.stopPropagation()
-          if (e.instanceId !== undefined)
+          if (e.instanceId !== undefined) {
             onSelect(graph.nodes[e.instanceId]?.id ?? '')
+          }
         }}
       >
         <icosahedronGeometry args={[0.22, 2]} />
