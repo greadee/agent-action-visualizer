@@ -77,6 +77,20 @@ type liveFocusDTO struct {
 	Source           protocol.SourceType `json:"source,omitempty"`
 	Confidence       protocol.Confidence `json:"confidence,omitempty"`
 	Timestamp        time.Time           `json:"timestamp,omitempty"`
+	Trail            []trailAccessDTO    `json:"trail"`
+}
+
+type trailAccessDTO struct {
+	Sequence   int                 `json:"sequence"`
+	NodeID     string              `json:"node_id,omitempty"`
+	Path       string              `json:"path"`
+	StartedAt  time.Time           `json:"started_at"`
+	EndedAt    *time.Time          `json:"ended_at,omitempty"`
+	DurationMS int64               `json:"duration_ms"`
+	Operations []string            `json:"operations"`
+	Source     protocol.SourceType `json:"source"`
+	Confidence protocol.Confidence `json:"confidence"`
+	AgentID    string              `json:"agent_id,omitempty"`
 }
 
 // LoadProject scans metadata only, initializes stable identity, and publishes a full graph snapshot.
@@ -191,8 +205,27 @@ func (a *App) liveFocusDTO(state session.State) liveFocusDTO {
 		PreviousPath: state.PreviousPath, SecondaryNodeIDs: secondaryIDs,
 		SecondaryPaths: state.SecondaryPaths, Operation: state.ActiveOperation,
 		Source: state.ActiveSource, Confidence: state.ActiveConfidence,
-		Timestamp: state.ActiveTimestamp,
+		Timestamp: state.ActiveTimestamp, Trail: a.trailDTOs(state.Intervals),
 	}
+}
+
+func (a *App) trailDTOs(intervals []session.AccessInterval) []trailAccessDTO {
+	result := make([]trailAccessDTO, 0, len(intervals))
+	for _, interval := range intervals {
+		nodeID := interval.NodeID
+		if nodeID == "" {
+			nodeID = a.nodeIDForPath(interval.Path)
+		}
+		result = append(result, trailAccessDTO{
+			Sequence: interval.Sequence, NodeID: nodeID, Path: interval.Path,
+			StartedAt: interval.StartedAt, EndedAt: interval.EndedAt,
+			DurationMS: interval.Duration.Milliseconds(),
+			Operations: append([]string(nil), interval.Operations...),
+			Source:     interval.Source, Confidence: interval.Confidence,
+			AgentID: interval.AgentID,
+		})
+	}
+	return result
 }
 
 // RefreshProject emits only graph changes after the initial snapshot.

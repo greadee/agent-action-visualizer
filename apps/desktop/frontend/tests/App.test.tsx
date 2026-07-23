@@ -44,4 +44,31 @@ describe('App', () => {
     )
     expect(screen.getByText('read · exact')).toBeTruthy()
   })
+
+  it('switches between a bounded recent trail and the complete session', async () => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'Next review event' }))
+    await waitFor(() =>
+      expect(screen.getByText('1 of 1 accesses')).toBeTruthy(),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Next review event' }))
+    await waitFor(() =>
+      expect(screen.getByText('2 of 2 accesses')).toBeTruthy(),
+    )
+
+    const limit = screen.getByRole('spinbutton', {
+      name: 'Recent trail access limit',
+    })
+    expect(limit).toHaveProperty('value', '12')
+    fireEvent.change(limit, { target: { value: '2' } })
+    expect(limit).toHaveProperty('value', '2')
+
+    fireEvent.click(
+      screen.getByRole('checkbox', { name: 'Complete session trail' }),
+    )
+    expect(
+      screen.queryByRole('spinbutton', { name: 'Recent trail access limit' }),
+    ).toBeNull()
+    expect(screen.getByText('session travel → newest')).toBeTruthy()
+  })
 })

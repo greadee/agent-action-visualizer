@@ -27,6 +27,9 @@ export function GraphLegend({ activityMode }: { activityMode: ActivityMode }) {
         <i className="legend__edge" /> structure edge
       </span>
       <span className="legend__wide">
+        <i className="legend__trail" /> session travel → newest
+      </span>
+      <span className="legend__wide">
         <i className={`legend__activity legend__activity--${activityMode}`} />
         outward line = reported {activityMode}
       </span>
@@ -39,6 +42,9 @@ export function GraphLegend({ activityMode }: { activityMode: ActivityMode }) {
       </span>
       <span className="legend__wide">
         <i style={{ background: '#d59aff' }} /> secondary-active
+      </span>
+      <span className="legend__wide">
+        <i style={{ background: '#4d9aa0' }} /> older trail access
       </span>
     </div>
   )

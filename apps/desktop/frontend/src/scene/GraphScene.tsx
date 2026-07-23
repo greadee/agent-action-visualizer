@@ -6,11 +6,14 @@ import { CameraFocusController } from '../camera/CameraFocusController'
 import { nodeColors } from '../graph/palette'
 import type { GraphSnapshot, LiveFocusState } from '../graph/types'
 import { focusRoleForNode } from './focusState'
+import { SessionTrail } from './SessionTrail'
+import { selectTrailAccesses, type TrailOptions } from './trail'
 
 const focusColors = {
   current: '#35ffd2',
   previous: '#ffb45f',
   secondary: '#d59aff',
+  older: '#4d9aa0',
 }
 export function GraphScene({
   graph,
@@ -19,6 +22,10 @@ export function GraphScene({
   showLabels,
   showStructure,
   showActivity,
+  showTrail,
+  recentTrailAccesses,
+  completeTrail,
+  hideTrailRepeats,
   activityMode,
   focusState,
   cameraFocusId,
@@ -31,6 +38,10 @@ export function GraphScene({
   showLabels: boolean
   showStructure: boolean
   showActivity: boolean
+  showTrail: boolean
+  recentTrailAccesses: number
+  completeTrail: boolean
+  hideTrailRepeats: boolean
   activityMode: ActivityMode
   focusState?: LiveFocusState
   cameraFocusId?: string
@@ -42,19 +53,44 @@ export function GraphScene({
   const [hovered, setHovered] = useState<number>()
   const selected = graph.nodes.find((n) => n.id === selectedId)
   const cameraFocus = graph.nodes.find((n) => n.id === cameraFocusId)
+  const trailOptions = useMemo<TrailOptions>(
+    () => ({
+      recentAccesses: recentTrailAccesses,
+      completeSession: completeTrail,
+      hideConsecutiveRepeats: hideTrailRepeats,
+    }),
+    [completeTrail, hideTrailRepeats, recentTrailAccesses],
+  )
+  const olderTrailNodeIds = useMemo(() => {
+    if (!showTrail) return new Set<string>()
+    return new Set(
+      selectTrailAccesses(focusState?.trail ?? [], trailOptions)
+        .map((access) => access.node_id)
+        .filter((id): id is string => Boolean(id)),
+    )
+  }, [focusState?.trail, showTrail, trailOptions])
   useLayoutEffect(() => {
     const matrix = new Matrix4()
     graph.nodes.forEach((node, index) => {
       matrix.makeTranslation(...node.position)
-      const focusRole = focusRoleForNode(node.id, focusState)
+      const focusRole = focusRoleForNode(node.id, focusState, olderTrailNodeIds)
       const isCurrent = focusRole === 'current'
       const isPrevious = focusRole === 'previous'
       const isSecondary = focusRole === 'secondary'
+      const isOlder = focusRole === 'older'
       const baseScale =
         node.kind === 'root' ? 1.7 : node.kind === 'directory' ? 1.3 : 1
       const scale =
         baseScale *
-        (isCurrent ? 1.65 : isPrevious ? 1.32 : isSecondary ? 1.22 : 1)
+        (isCurrent
+          ? 1.65
+          : isPrevious
+            ? 1.32
+            : isSecondary
+              ? 1.22
+              : isOlder
+                ? 1.08
+                : 1)
       matrix.scale(new Vector3(scale, scale, scale))
       mesh.current?.setMatrixAt(index, matrix)
       mesh.current?.setColorAt(
@@ -66,9 +102,11 @@ export function GraphScene({
               ? focusColors.previous
               : isSecondary
                 ? focusColors.secondary
-                : node.id === selectedId
-                  ? '#ffffff'
-                  : nodeColors[node.kind],
+                : isOlder
+                  ? focusColors.older
+                  : node.id === selectedId
+                    ? '#ffffff'
+                    : nodeColors[node.kind],
         ),
       )
     })
@@ -77,7 +115,7 @@ export function GraphScene({
       if (mesh.current.instanceColor)
         mesh.current.instanceColor.needsUpdate = true
     }
-  }, [focusState, graph, selectedId])
+  }, [focusState, graph, olderTrailNodeIds, selectedId])
   const positions = useMemo(() => {
     const byId = new Map(graph.nodes.map((n) => [n.id, n.position]))
     return new Float32Array(
@@ -150,6 +188,13 @@ export function GraphScene({
             />
           </instancedMesh>
         </>
+      )}
+      {showTrail && (
+        <SessionTrail
+          nodes={graph.nodes}
+          trail={focusState?.trail ?? []}
+          options={trailOptions}
+        />
       )}
       <instancedMesh
         ref={mesh}

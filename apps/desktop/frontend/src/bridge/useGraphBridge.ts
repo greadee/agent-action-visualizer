@@ -74,16 +74,65 @@ export function useGraphBridge(fallback: GraphSnapshot) {
     }
     setLiveFocus((current) => {
       if (event.event_type === 'session_started') {
-        return { session_id: event.session_id }
+        return { session_id: event.session_id, trail: [] }
+      }
+      if (!event.path) {
+        return current ?? { session_id: event.session_id, trail: [] }
       }
       const active = graph.nodes.find((node) => node.path === event.path)
       const secondaryPaths = event.metadata?.secondary_paths ?? []
+      const previousTrail = current?.trail ?? []
+      const lastAccess = previousTrail.at(-1)
+      const sameAccess = lastAccess?.path === event.path
+      const closedTrail = sameAccess
+        ? previousTrail.slice(0, -1)
+        : previousTrail.map((access, index) =>
+            index === previousTrail.length - 1 && !access.ended_at
+              ? {
+                  ...access,
+                  ended_at: event.timestamp,
+                  duration_ms: Math.max(
+                    0,
+                    Date.parse(event.timestamp) - Date.parse(access.started_at),
+                  ),
+                }
+              : access,
+          )
+      const operations = Array.from(
+        new Set(
+          sameAccess
+            ? [...(lastAccess?.operations ?? []), event.operation].filter(
+                (operation): operation is string => Boolean(operation),
+              )
+            : event.operation
+              ? [event.operation]
+              : [],
+        ),
+      )
+      const nextAccess = {
+        sequence: sameAccess
+          ? (lastAccess?.sequence ?? previousTrail.length + 1)
+          : previousTrail.length + 1,
+        node_id: active?.id,
+        path: event.path ?? '',
+        started_at: sameAccess
+          ? (lastAccess?.started_at ?? event.timestamp)
+          : event.timestamp,
+        duration_ms: 0,
+        operations,
+        source: event.source_type,
+        confidence: event.source_confidence,
+      }
       return {
         session_id: event.session_id,
         active_node_id: active?.id,
         active_path: event.path,
-        previous_node_id: current?.active_node_id,
-        previous_path: current?.active_path,
+        previous_node_id: sameAccess
+          ? current?.previous_node_id
+          : current?.active_node_id,
+        previous_path: sameAccess
+          ? current?.previous_path
+          : current?.active_path,
         secondary_node_ids: secondaryPaths
           .map((path) => graph.nodes.find((node) => node.path === path)?.id)
           .filter((id): id is string => Boolean(id) && id !== active?.id),
@@ -92,6 +141,7 @@ export function useGraphBridge(fallback: GraphSnapshot) {
         source: event.source_type,
         confidence: event.source_confidence,
         timestamp: event.timestamp,
+        trail: [...closedTrail, nextAccess],
       }
     })
   }

@@ -8,6 +8,7 @@ import type { LiveFocusState } from './graph/types'
 import { NodeInspector } from './inspector/NodeInspector'
 import { GraphLegend } from './scene/GraphLegend'
 import { GraphScene } from './scene/GraphScene'
+import { selectTrailAccesses } from './scene/trail'
 
 const reviewEpoch = Date.parse('2026-07-21T18:00:00Z')
 
@@ -19,6 +20,10 @@ function App() {
   const [showLabels, setShowLabels] = useState(true)
   const [showStructure, setShowStructure] = useState(true)
   const [showActivity, setShowActivity] = useState(true)
+  const [showTrail, setShowTrail] = useState(true)
+  const [recentTrailAccesses, setRecentTrailAccesses] = useState(12)
+  const [completeTrail, setCompleteTrail] = useState(false)
+  const [hideTrailRepeats, setHideTrailRepeats] = useState(true)
   const [activityMode, setActivityMode] = useState<ActivityMode>('time')
   const [projectPath, setProjectPath] = useState('')
   const [projectError, setProjectError] = useState('')
@@ -38,6 +43,15 @@ function App() {
         .filter((node) => node.path.toLowerCase().includes(query.toLowerCase()))
         .slice(0, 5)
     : []
+  const trailAccessCount = displayedFocus?.trail.length ?? 0
+  const visibleTrailAccessCount = selectTrailAccesses(
+    displayedFocus?.trail ?? [],
+    {
+      recentAccesses: recentTrailAccesses,
+      completeSession: completeTrail,
+      hideConsecutiveRepeats: hideTrailRepeats,
+    },
+  ).length
 
   useEffect(() => {
     if (!selected && graph.nodes[0]) setSelectedId(graph.nodes[0].id)
@@ -94,8 +108,8 @@ function App() {
     if (!reviewStarted.current) {
       await publishActivityEvent({
         schema_version: '1.0',
-        event_id: 'p4-s2-review-start',
-        session_id: 'p4-s2-review',
+        event_id: 'p4-review-start',
+        session_id: 'p4-review',
         source_type: 'synthetic',
         source_confidence: 'exact',
         event_type: 'session_started',
@@ -110,8 +124,8 @@ function App() {
     ].filter((node) => node.id !== active.id)
     await publishActivityEvent({
       schema_version: '1.0',
-      event_id: `p4-s2-review-${step}`,
-      session_id: 'p4-s2-review',
+      event_id: `p4-review-${step}`,
+      session_id: 'p4-review',
       source_type: 'synthetic',
       source_confidence: 'exact',
       event_type: step % 2 === 0 ? 'file_patched' : 'file_read',
@@ -294,6 +308,65 @@ function App() {
             />
             Activity extrusions
           </label>
+          <div className="rule" />
+          <p className="panel__label">SESSION TRAIL</p>
+          <label className="toggle">
+            <input
+              aria-label="Session trail"
+              type="checkbox"
+              checked={showTrail}
+              onChange={(event) => setShowTrail(event.target.checked)}
+            />
+            Directional travel edges
+          </label>
+          {showTrail && (
+            <div className="trail-controls">
+              <p aria-live="polite">
+                {visibleTrailAccessCount} of {trailAccessCount} accesses
+              </p>
+              <label className="toggle">
+                <input
+                  aria-label="Complete session trail"
+                  type="checkbox"
+                  checked={completeTrail}
+                  onChange={(event) => setCompleteTrail(event.target.checked)}
+                />
+                Complete session
+              </label>
+              {!completeTrail && (
+                <label className="trail-limit">
+                  Last
+                  <input
+                    aria-label="Recent trail access limit"
+                    type="number"
+                    min="2"
+                    max="200"
+                    value={recentTrailAccesses}
+                    onChange={(event) =>
+                      setRecentTrailAccesses(
+                        Math.min(
+                          200,
+                          Math.max(2, Number(event.target.value) || 2),
+                        ),
+                      )
+                    }
+                  />
+                  accesses
+                </label>
+              )}
+              <label className="toggle">
+                <input
+                  aria-label="Hide consecutive repeated accesses"
+                  type="checkbox"
+                  checked={hideTrailRepeats}
+                  onChange={(event) =>
+                    setHideTrailRepeats(event.target.checked)
+                  }
+                />
+                Hide consecutive repeats
+              </label>
+            </div>
+          )}
           <GraphLegend activityMode={activityMode} />
         </aside>
         <div className="viewport">
@@ -306,6 +379,10 @@ function App() {
               showLabels={showLabels}
               showStructure={showStructure}
               showActivity={showActivity}
+              showTrail={showTrail}
+              recentTrailAccesses={recentTrailAccesses}
+              completeTrail={completeTrail}
+              hideTrailRepeats={hideTrailRepeats}
               activityMode={activityMode}
               focusState={displayedFocus}
               cameraFocusId={cameraFocusId}

@@ -57,6 +57,20 @@ export interface LiveFocusState {
   source?: string
   confidence?: string
   timestamp?: string
+  trail: TrailAccess[]
+}
+
+export interface TrailAccess {
+  sequence: number
+  node_id?: string
+  path: string
+  started_at: string
+  ended_at?: string
+  duration_ms: number
+  operations: string[]
+  source: string
+  confidence: string
+  agent_id?: string
 }
 
 export interface ActivityEvent {

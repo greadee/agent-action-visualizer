@@ -78,6 +78,15 @@ func TestPublishActivityEventMapsLiveFocusNodes(t *testing.T) {
 	if len(secondary) != 2 || !secondary[ids["main.go"]] || !secondary[ids["README.md"]] {
 		t.Fatalf("incorrect secondary mapping: %#v", focus)
 	}
+	if len(focus.Trail) != 2 {
+		t.Fatalf("incorrect trail length: %#v", focus.Trail)
+	}
+	if focus.Trail[0].Sequence != 1 || focus.Trail[0].NodeID != ids["main.go"] || focus.Trail[0].EndedAt == nil || focus.Trail[0].DurationMS != 1000 {
+		t.Fatalf("incorrect closed trail access: %#v", focus.Trail[0])
+	}
+	if focus.Trail[1].Sequence != 2 || focus.Trail[1].NodeID != ids["helper.go"] || focus.Trail[1].EndedAt != nil || len(focus.Trail[1].Operations) != 1 {
+		t.Fatalf("incorrect active trail access: %#v", focus.Trail[1])
+	}
 }
 
 func TestPublishActivityEventRejectsEscapingSecondaryPath(t *testing.T) {

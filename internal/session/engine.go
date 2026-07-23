@@ -99,14 +99,20 @@ func (e *Engine) Apply(event protocol.Event) (State, error) {
 		return clone(s), nil
 	}
 	if s.ActivePath == event.Path {
-		if current := current(s); current != nil {
+		if current := current(s); current != nil && current.EndedAt == nil {
 			current.Operations = appendUnique(current.Operations, event.Operation)
 			mergeDelta(current, event)
+			s.currentPriority, s.currentTimestamp = priority, event.Timestamp
+			s.ActiveOperation, s.ActiveSource = event.Operation, event.SourceType
+			s.ActiveConfidence, s.ActiveTimestamp = event.SourceConfidence, event.Timestamp
+			s.SecondaryPaths = secondaryPaths(event.Metadata)
+			return clone(s), nil
 		}
 		s.currentPriority, s.currentTimestamp = priority, event.Timestamp
 		s.ActiveOperation, s.ActiveSource = event.Operation, event.SourceType
 		s.ActiveConfidence, s.ActiveTimestamp = event.SourceConfidence, event.Timestamp
 		s.SecondaryPaths = secondaryPaths(event.Metadata)
+		s.Intervals = append(s.Intervals, AccessInterval{Sequence: len(s.Intervals) + 1, NodeID: event.NodeID, Path: event.Path, StartedAt: event.Timestamp, Operations: appendUnique(nil, event.Operation), Source: event.SourceType, Confidence: event.SourceConfidence, AgentID: event.AgentID, LinesAdded: event.LinesAdded, LinesDeleted: event.LinesDeleted})
 		return clone(s), nil
 	}
 	e.closeCurrent(s, event.Timestamp)

@@ -74,6 +74,32 @@ func TestIdleTimeoutCapsDuration(t *testing.T) {
 	}
 }
 
+func TestSamePathAfterIdleCreatesNewAccess(t *testing.T) {
+	base := time.Unix(1000, 0)
+	engine := NewEngine(30 * time.Second)
+	start(t, engine, "s", base)
+	first := ev("s", protocol.EventFileRead, "a.go", base, protocol.ConfidenceExact)
+	first.NodeID = "node-a"
+	if _, err := engine.Apply(first); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := engine.Advance("s", base.Add(time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+	next := ev("s", protocol.EventFilePatched, "a.go", base.Add(2*time.Minute), protocol.ConfidenceExact)
+	next.NodeID = "node-a"
+	state, err := engine.Apply(next)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(state.Intervals) != 2 || state.Intervals[1].Sequence != 2 || state.Intervals[1].EndedAt != nil {
+		t.Fatalf("same path did not reopen as a new access: %+v", state.Intervals)
+	}
+	if state.ActiveNodeID != "node-a" || state.PreviousNodeID != "" {
+		t.Fatalf("same path reopen changed focus identity: %+v", state)
+	}
+}
+
 func TestFocusStateCarriesOperationAndSecondaryPaths(t *testing.T) {
 	base := time.Unix(1000, 0)
 	engine := NewEngine(time.Minute)
