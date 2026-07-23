@@ -20,6 +20,7 @@ function App() {
   const [showLabels, setShowLabels] = useState(true)
   const [showStructure, setShowStructure] = useState(true)
   const [showActivity, setShowActivity] = useState(true)
+  const [showAccessPoints, setShowAccessPoints] = useState(true)
   const [showTrail, setShowTrail] = useState(true)
   const [recentTrailAccesses, setRecentTrailAccesses] = useState(12)
   const [completeTrail, setCompleteTrail] = useState(false)
@@ -98,25 +99,27 @@ function App() {
     }
   }
 
+  async function ensureReviewSession() {
+    if (reviewStarted.current) return
+    await publishActivityEvent({
+      schema_version: '1.0',
+      event_id: 'p4-review-start',
+      session_id: 'p4-review',
+      source_type: 'synthetic',
+      source_confidence: 'exact',
+      event_type: 'session_started',
+      timestamp: new Date(reviewEpoch).toISOString(),
+    })
+    reviewStarted.current = true
+  }
+
   async function advanceReviewFocus() {
     const candidates = graph.nodes.filter(
       (node) => node.kind !== 'root' && node.kind !== 'directory',
     )
     if (candidates.length === 0) return
     const step = reviewStep.current
-    const timestamp = new Date(reviewEpoch + step * 1000).toISOString()
-    if (!reviewStarted.current) {
-      await publishActivityEvent({
-        schema_version: '1.0',
-        event_id: 'p4-review-start',
-        session_id: 'p4-review',
-        source_type: 'synthetic',
-        source_confidence: 'exact',
-        event_type: 'session_started',
-        timestamp,
-      })
-      reviewStarted.current = true
-    }
+    await ensureReviewSession()
     const active = candidates[step % candidates.length]!
     const secondary = [
       candidates[(step + 1) % candidates.length]!,
@@ -135,6 +138,32 @@ function App() {
       metadata: { secondary_paths: secondary.map((node) => node.path) },
     })
     reviewStep.current += 1
+  }
+
+  async function addDenseReviewBatch() {
+    const candidates = graph.nodes.filter(
+      (node) => node.kind !== 'root' && node.kind !== 'directory',
+    )
+    if (candidates.length < 2) return
+    await ensureReviewSession()
+    const start = reviewStep.current
+    for (let offset = 0; offset < 60; offset += 1) {
+      const active = candidates[offset % 2]!
+      await publishActivityEvent({
+        schema_version: '1.0',
+        event_id: `p5-review-dense-${start + offset}`,
+        session_id: 'p4-review',
+        source_type: 'synthetic',
+        source_confidence: 'exact',
+        event_type: offset % 2 === 0 ? 'file_patched' : 'file_read',
+        operation: offset % 2 === 0 ? 'patch' : 'read',
+        timestamp: new Date(
+          reviewEpoch + (start + offset + 1) * 1000,
+        ).toISOString(),
+        path: active.path,
+      })
+    }
+    reviewStep.current += 60
   }
 
   return (
@@ -254,9 +283,17 @@ function App() {
               {livePaused ? 'Return live' : 'Pause updates'}
             </button>
             {import.meta.env.DEV && (
-              <button type="button" onClick={() => void advanceReviewFocus()}>
-                Next review event
-              </button>
+              <>
+                <button type="button" onClick={() => void advanceReviewFocus()}>
+                  Next review event
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void addDenseReviewBatch()}
+                >
+                  Add dense review batch
+                </button>
+              </>
             )}
           </div>
           <div className="rule" />
@@ -307,6 +344,15 @@ function App() {
               onChange={(event) => setShowActivity(event.target.checked)}
             />
             Activity extrusions
+          </label>
+          <label className="toggle">
+            <input
+              aria-label="Access points"
+              type="checkbox"
+              checked={showAccessPoints}
+              onChange={(event) => setShowAccessPoints(event.target.checked)}
+            />
+            Access points
           </label>
           <div className="rule" />
           <p className="panel__label">SESSION TRAIL</p>
@@ -379,6 +425,7 @@ function App() {
               showLabels={showLabels}
               showStructure={showStructure}
               showActivity={showActivity}
+              showAccessPoints={showAccessPoints}
               showTrail={showTrail}
               recentTrailAccesses={recentTrailAccesses}
               completeTrail={completeTrail}

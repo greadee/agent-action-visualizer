@@ -6,6 +6,7 @@ import { CameraFocusController } from '../camera/CameraFocusController'
 import { nodeColors } from '../graph/palette'
 import type { GraphSnapshot, LiveFocusState } from '../graph/types'
 import { focusRoleForNode } from './focusState'
+import { AccessPoints } from './AccessPoints'
 import { SessionTrail } from './SessionTrail'
 import { selectTrailAccesses, type TrailOptions } from './trail'
 
@@ -22,6 +23,7 @@ export function GraphScene({
   showLabels,
   showStructure,
   showActivity,
+  showAccessPoints,
   showTrail,
   recentTrailAccesses,
   completeTrail,
@@ -38,6 +40,7 @@ export function GraphScene({
   showLabels: boolean
   showStructure: boolean
   showActivity: boolean
+  showAccessPoints: boolean
   showTrail: boolean
   recentTrailAccesses: number
   completeTrail: boolean
@@ -188,6 +191,9 @@ export function GraphScene({
             />
           </instancedMesh>
         </>
+      )}
+      {showAccessPoints && (
+        <AccessPoints nodes={graph.nodes} trail={focusState?.trail ?? []} />
       )}
       {showTrail && (
         <SessionTrail

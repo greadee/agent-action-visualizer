@@ -33,6 +33,12 @@ export function GraphLegend({ activityMode }: { activityMode: ActivityMode }) {
         <i className={`legend__activity legend__activity--${activityMode}`} />
         outward line = reported {activityMode}
       </span>
+      <span>
+        <i className="legend__access-point" /> access point
+      </span>
+      <span>
+        <i className="legend__access-aggregate" /> aggregated accesses
+      </span>
       <span className="legend__wide">Proximity = latest Git involvement</span>
       <span>
         <i style={{ background: '#35ffd2' }} /> current

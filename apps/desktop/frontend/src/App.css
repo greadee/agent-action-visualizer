@@ -220,6 +220,16 @@ select {
   background: linear-gradient(90deg, #52657a, #35ffd2);
   box-shadow: 5px 0 0 -3px #35ffd2;
 }
+.legend .legend__access-point {
+  background: #a8dbe2;
+  box-shadow: 0 0 7px #a8dbe299;
+}
+.legend .legend__access-aggregate {
+  width: 10px;
+  height: 10px;
+  background: #d59aff;
+  box-shadow: 0 0 7px #d59aff99;
+}
 .legend__wide {
   grid-column: 1 / -1;
 }
@@ -357,5 +367,21 @@ select {
   pointer-events: none;
 }
 .trail-tooltip small {
+  color: #8fa7b6;
+}
+.access-point-tooltip {
+  display: grid;
+  min-width: 152px;
+  gap: 3px;
+  padding: 7px 9px;
+  border: 1px solid #a8dbe288;
+  border-radius: 7px;
+  color: #e7fbff;
+  background: #07131cf0;
+  font-size: 10px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.access-point-tooltip small {
   color: #8fa7b6;
 }

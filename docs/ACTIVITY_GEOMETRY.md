@@ -10,6 +10,10 @@ The layout is deterministic for the same history. A new latest commit intentiona
 
 File activity starts at the file node and extends radially outward. The endpoint is the edit point. Directories and the root do not receive edit-point extrusions.
 
+## Session access points
+
+Each access interval also receives a deterministic point on the outward-facing node surface. The anchor uses a stable golden-angle Fibonacci disk indexed by that node's access ordinal, so adding later accesses never moves an earlier point. A node with dense session history renders the newest 16 intervals individually and compacts older intervals into at most eight counted markers; see `docs/ACCESS_POINTS.md` for the exact aggregation contract.
+
 For the selected Time or Work value `v`, relative to the largest visible value `max`, extrusion length is:
 
 ```text

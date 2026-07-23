@@ -123,10 +123,48 @@ func generate(root string) error {
 	if err != nil {
 		return err
 	}
+	denseEvents := accessPointReviewEvents(base)
+	denseData, err := json.MarshalIndent(denseEvents, "", "  ")
+	if err != nil {
+		return err
+	}
 	return writeFiles(root, map[string]string{
-		".aav/activity-v1.json":     string(data) + "\n",
-		".aav/focus-review-v1.json": string(focusData) + "\n",
+		".aav/activity-v1.json":             string(data) + "\n",
+		".aav/focus-review-v1.json":         string(focusData) + "\n",
+		".aav/access-points-review-v1.json": string(denseData) + "\n",
 	})
+}
+
+func accessPointReviewEvents(base time.Time) []protocol.Event {
+	events := []protocol.Event{{
+		SchemaVersion:    protocol.SchemaVersion,
+		EventID:          "access-points-start",
+		SessionID:        "review-access-points",
+		SourceType:       protocol.SourceSynthetic,
+		SourceConfidence: protocol.ConfidenceExact,
+		EventType:        protocol.EventSessionStarted,
+		Timestamp:        base,
+	}}
+	paths := []string{"src/ui/Graph.tsx", "src/ui/Dashboard.tsx"}
+	for index := 0; index < 60; index++ {
+		eventType := protocol.EventFileRead
+		operation := "read"
+		if index%2 == 0 {
+			eventType, operation = protocol.EventFilePatched, "patch"
+		}
+		events = append(events, protocol.Event{
+			SchemaVersion:    protocol.SchemaVersion,
+			EventID:          fmt.Sprintf("access-point-%02d", index+1),
+			SessionID:        "review-access-points",
+			SourceType:       protocol.SourceSynthetic,
+			SourceConfidence: protocol.ConfidenceExact,
+			EventType:        eventType,
+			Operation:        operation,
+			Timestamp:        base.Add(time.Duration(index+1) * time.Second),
+			Path:             paths[index%len(paths)],
+		})
+	}
+	return events
 }
 
 func reviewEvent(id string, eventType protocol.EventType, path string, at time.Time, secondary []string) protocol.Event {
