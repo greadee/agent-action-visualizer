@@ -303,7 +303,7 @@ select {
   border: 0;
   background: transparent;
 }
-.segmented .segmented__active {
+.segmented .pui-segmented-control__option--selected {
   color: #091215;
   background: #7be4ce;
 }

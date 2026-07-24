@@ -23,6 +23,18 @@ describe('App', () => {
     expect(screen.getByText('Absent — static scan')).toBeTruthy()
   })
 
+  it('uses the shared exclusive control for activity mode', () => {
+    render(<App />)
+    const time = screen.getByRole('button', { name: 'Time' })
+    const work = screen.getByRole('button', { name: 'Work' })
+
+    expect(time.getAttribute('aria-pressed')).toBe('true')
+    expect(work.getAttribute('aria-pressed')).toBe('false')
+    fireEvent.click(work)
+    expect(time.getAttribute('aria-pressed')).toBe('false')
+    expect(work.getAttribute('aria-pressed')).toBe('true')
+  })
+
   it('advances deterministic focus and freezes the displayed state while paused', async () => {
     render(<App />)
     fireEvent.click(screen.getByRole('button', { name: 'Next review event' }))

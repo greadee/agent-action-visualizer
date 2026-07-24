@@ -1,3 +1,4 @@
+import { VisuallyHidden } from '@prool-ui/react'
 import { nodeColors } from '../graph/palette'
 import type { GraphNode } from '../graph/types'
 import type { ActivityMode } from '../activity/extrusions'
@@ -16,7 +17,8 @@ const kinds: GraphNode['kind'][] = [
 
 export function GraphLegend({ activityMode }: { activityMode: ActivityMode }) {
   return (
-    <div className="legend" aria-label="Graph legend">
+    <div className="legend" aria-labelledby="graph-legend-heading">
+      <VisuallyHidden id="graph-legend-heading">Graph legend</VisuallyHidden>
       <p className="panel__label">LEGEND</p>
       {kinds.map((kind) => (
         <span key={kind}>

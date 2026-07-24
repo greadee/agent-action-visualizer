@@ -1,3 +1,4 @@
+import { SegmentedControl } from '@prool-ui/react'
 import { Canvas } from '@react-three/fiber'
 import { useEffect, useRef, useState } from 'react'
 import './App.css'
@@ -343,22 +344,16 @@ function App() {
           </div>
           <div className="rule" />
           <p className="panel__label">MODE</p>
-          <div className="segmented" aria-label="Activity mode">
-            <button
-              className={activityMode === 'time' ? 'segmented__active' : ''}
-              type="button"
-              onClick={() => setActivityMode('time')}
-            >
-              Time
-            </button>
-            <button
-              className={activityMode === 'work' ? 'segmented__active' : ''}
-              type="button"
-              onClick={() => setActivityMode('work')}
-            >
-              Work
-            </button>
-          </div>
+          <SegmentedControl
+            className="segmented"
+            label="Activity mode"
+            options={[
+              { value: 'time', label: 'Time' },
+              { value: 'work', label: 'Work' },
+            ]}
+            value={activityMode}
+            onChange={setActivityMode}
+          />
           <div className="rule" />
           <label className="panel__label" htmlFor="layout-select">
             LAYOUT
