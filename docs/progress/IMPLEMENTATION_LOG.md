@@ -278,3 +278,18 @@
 - Commit SHA: `299a9c6`
 - Known limitations: user-facing work scale and clamp controls are deferred to P5-S4; Git fallback reflects working-tree state when its batch executes and reports unknown when no exact row is available; native adapters do not provide correlated snapshots until their later phases
 - Next slice: P5-S4 - Activity controls / refine
+
+## P5-S4 - Activity controls / refine
+
+- Phase: 5
+- Slice: P5-S4
+- Feature: Activity controls
+- Action: Refine
+- Status: complete
+- Files changed: shared activity display settings, accessible Time/Work scale and mode-specific cap controls, cap-aware time/work renderers, exact-value clamp treatment in tooltips and inspector, legend state, deterministic cross-mode fixtures, documentation, and regression tests
+- Tests run: complete core and desktop Go tests/vet; Prettier, ESLint, TypeScript, Vitest (34 tests), Vite production build, Wails Windows production build, and `npm ci`; browser review of time, work, linear/logarithmic scaling, duration/work caps, mixed and extreme work, and dense history fixtures
+- Benchmark result: production bundle 1,134.24 kB (312.75 kB gzip); the existing code-splitting warning remains deferred to P9
+- Commit SHA: `4f589a9`
+- Known limitations: display preferences are session-local until P8 persisted preferences; the Three.js `Clock` deprecation warning is upstream and does not affect geometry behavior
+- Phase summary: every access retains a stable point; time and additions extend outward, deletions extend inward, and exact duration and work evidence remains inspectable after visual clamping across deterministic Time and Work replay
+- Next slice: P6-S1 - Codex research / verify
