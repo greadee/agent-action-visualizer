@@ -17,6 +17,11 @@ The shared repository owns tokens, themes, reusable React rendering, accessibili
 5. Review the dark-theme visual diff.
 6. Commit the dependency update separately.
 
+On Windows, stop any Vite or Wails development server before `npm ci`. Vite
+holds a native Rolldown binding while it runs, which prevents npm from removing
+that file during a clean install and produces an `EPERM unlink` error. This is
+a local process lock, not a lockfile mismatch.
+
 ## Rollback
 
 Restore the previous validated package versions and lockfile, rerun the same checks, and revert the isolated migration commit if necessary. Never edit installed package files.
