@@ -1,6 +1,6 @@
 # Shared UI integration
 
-This application consumes version `0.1.0` of the canonical `@prool-ui/*` packages. Until a remote package registry exists, npm `file:` dependencies point at the sibling `shared-ui` development repository. The shared repository must be built before this frontend.
+This application consumes version `0.1.0` of the canonical `@prool-ui/*` packages from immutable release tarballs committed under `apps/desktop/frontend/vendor/prool-ui`. Installation and builds do not read the shared UI working repository, so later upstream changes cannot alter this application.
 
 ## Ownership
 
@@ -11,10 +11,11 @@ The shared repository owns tokens, themes, reusable React rendering, accessibili
 ## Upgrade
 
 1. Build and validate the target shared UI version.
-2. Update the three exact dependency versions or temporary `file:` paths together.
-3. Run `npm test`, `npm run typecheck`, `npm run build`, and the app's live browser check.
-4. Review the dark-theme visual diff.
-5. Commit the dependency update separately.
+2. Pack the three packages and copy the versioned tarballs into `apps/desktop/frontend/vendor/prool-ui`.
+3. Update all three exact tarball paths together and regenerate `package-lock.json`.
+4. Run `npm ci`, `npm test`, `npm run typecheck`, `npm run build`, and the app's live browser check.
+5. Review the dark-theme visual diff.
+6. Commit the dependency update separately.
 
 ## Rollback
 

@@ -3,6 +3,11 @@
   "application": "agent-action-visualizer",
   "react": "19",
   "sharedUi": "0.1.0",
+  "transport": {
+    "kind": "vendored-tarballs",
+    "path": "apps/desktop/frontend/vendor/prool-ui",
+    "upstreamCommit": "510c06e"
+  },
   "packages": {
     "@prool-ui/tokens": "0.1.0",
     "@prool-ui/themes": "0.1.0",
