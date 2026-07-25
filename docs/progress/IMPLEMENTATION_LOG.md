@@ -264,3 +264,17 @@
 - Commit SHA: `f898de3`
 - Known limitations: scale selection and user-facing clamp controls are deferred to P5-S4; work additions/deletions remain deferred to P5-S3
 - Next slice: P5-S3 - Work mode / calculate
+
+## P5-S3 - Work mode / calculate
+
+- Phase: 5
+- Slice: P5-S3
+- Feature: Work mode
+- Action: Calculate
+- Status: complete
+- Files changed: bounded asynchronous line-delta pipeline with structured-patch, correlated-snapshot, and batched Git evidence; per-access work provenance; outward addition and inward deletion geometry; explicit empty, unknown, binary, unsupported-encoding, and pending markers; exact tooltip/inspector values; review fixtures; documentation; and cross-layer tests
+- Tests run: complete core and desktop Go tests/vet; Prettier, ESLint, TypeScript, Vitest (31 tests), Vite production build, Wails Windows production build; in-app browser review of addition, deletion, mixed, empty, unknown, binary, and extreme deltas plus exact hover and inspector evidence
+- Benchmark result: production bundle 1,131.94 kB (312.00 kB gzip); the desktop pipeline uses a 64-request queue, 16-request Git batches, a 2-second Git timeout, bounded completed-key deduplication, and non-blocking fail-open submission
+- Commit SHA: `299a9c6`
+- Known limitations: user-facing work scale and clamp controls are deferred to P5-S4; Git fallback reflects working-tree state when its batch executes and reports unknown when no exact row is available; native adapters do not provide correlated snapshots until their later phases
+- Next slice: P5-S4 - Activity controls / refine
