@@ -1,5 +1,11 @@
 import { useEffect, useState } from 'react'
 import { normalizedIntervalDuration } from '../activity/timeExtrusions'
+import {
+  activityVisualCap,
+  formatVisualCap,
+  type ActivityDisplaySettings,
+} from '../activity/displaySettings'
+import type { ActivityMode } from '../activity/extrusions'
 import type { GraphNode, TrailAccess } from '../graph/types'
 import {
   formatDuration,
@@ -16,9 +22,13 @@ function parentPath(path: string): string {
 export function NodeInspector({
   node,
   access,
+  activityMode = 'time',
+  activitySettings,
 }: {
   node?: GraphNode
   access?: TrailAccess
+  activityMode?: ActivityMode
+  activitySettings?: ActivityDisplaySettings
 }) {
   const [nowMs, setNowMs] = useState(() => Date.now())
   useEffect(() => {
@@ -111,6 +121,22 @@ export function NodeInspector({
                   {access.work_source ?? 'unknown'} ·{' '}
                   {access.work_confidence ?? 'inferred'}
                 </dd>
+                {activitySettings && (
+                  <>
+                    <dt>Visual scale</dt>
+                    <dd>
+                      {activitySettings.scale === 'log'
+                        ? 'Logarithmic'
+                        : 'Linear'}
+                      ; cap{' '}
+                      {formatVisualCap(
+                        activityMode,
+                        activityVisualCap(activityMode, activitySettings),
+                      )}
+                      ; exact values retained
+                    </dd>
+                  </>
+                )}
                 <dt>Evidence</dt>
                 <dd>
                   {access.source} · {access.confidence}

@@ -96,6 +96,39 @@ describe('time extrusions', () => {
     expect(extrusions[1]?.clamped).toBe(true)
   })
 
+  it('uses the selected visual cap without changing exact replay values', () => {
+    const trail = [access(1, 10_000), access(2, 120_000)]
+    const first = buildTimeExtrusions(
+      trail,
+      [node],
+      startedAt,
+      'linear',
+      15_000,
+    )
+    const replay = buildTimeExtrusions(
+      trail,
+      [node],
+      startedAt,
+      'linear',
+      15_000,
+    )
+    const wide = buildTimeExtrusions(
+      trail,
+      [node],
+      startedAt,
+      'linear',
+      120_000,
+    )
+
+    expect(first).toEqual(replay)
+    expect(first.map((extrusion) => extrusion.durationMs)).toEqual([
+      10_000, 120_000,
+    ])
+    expect(first[1]?.clamped).toBe(true)
+    expect(wide[1]?.clamped).toBe(false)
+    expect(first[0]?.length).toBeGreaterThan(wide[0]?.length ?? 0)
+  })
+
   it('handles a degenerate node position with a finite outward direction', () => {
     const origin = { ...node, position: [0, 0, 0] as Vec3 }
     const extrusion = buildTimeExtrusions(

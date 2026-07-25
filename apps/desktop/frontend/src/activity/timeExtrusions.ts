@@ -75,7 +75,11 @@ export function buildTimeExtrusions(
   nodes: readonly GraphNode[],
   nowMs: number,
   scale: DurationScale = 'log',
+  visualCapMs: number = MAX_DURATION_SCALE_MS,
 ): TimeExtrusion[] {
+  const cap = Number.isFinite(visualCapMs)
+    ? Math.max(1, visualCapMs)
+    : MAX_DURATION_SCALE_MS
   const nodesByID = new Map(nodes.map((node) => [node.id, node]))
   const candidates = [...trail]
     .sort((left, right) => left.sequence - right.sequence)
@@ -87,7 +91,7 @@ export function buildTimeExtrusions(
       return [{ access, node, durationMs }]
     })
   const maximumMs = Math.min(
-    MAX_DURATION_SCALE_MS,
+    cap,
     Math.max(0, ...candidates.map(({ durationMs }) => durationMs)),
   )
 
@@ -115,7 +119,7 @@ export function buildTimeExtrusions(
       outward,
       durationMs,
       length,
-      clamped: durationMs > MAX_DURATION_SCALE_MS,
+      clamped: durationMs > cap,
       active: !access.ended_at,
     }
   })

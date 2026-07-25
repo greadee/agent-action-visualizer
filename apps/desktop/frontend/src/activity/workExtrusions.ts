@@ -82,7 +82,11 @@ export function buildWorkGeometry(
   trail: readonly TrailAccess[],
   nodes: readonly GraphNode[],
   scale: DurationScale = 'log',
+  visualCapLines: number = MAX_WORK_SCALE_LINES,
 ): WorkGeometry {
+  const cap = Number.isFinite(visualCapLines)
+    ? Math.max(1, visualCapLines)
+    : MAX_WORK_SCALE_LINES
   const nodesByID = new Map(nodes.map((node) => [node.id, node]))
   const accesses = [...trail]
     .sort((left, right) => left.sequence - right.sequence)
@@ -93,7 +97,7 @@ export function buildWorkGeometry(
         : []
     })
   const maximum = Math.min(
-    MAX_WORK_SCALE_LINES,
+    cap,
     Math.max(
       0,
       ...accesses.flatMap(({ access }) => [
@@ -140,7 +144,7 @@ export function buildWorkGeometry(
         outward,
         value,
         length,
-        clamped: value > MAX_WORK_SCALE_LINES,
+        clamped: value > cap,
       })
     }
   }

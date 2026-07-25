@@ -2,6 +2,7 @@ import { Html } from '@react-three/drei'
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Color, InstancedMesh, Matrix4, Vector3 } from 'three'
 import { buildWorkGeometry } from '../activity/workExtrusions'
+import type { DurationScale } from '../activity/timeExtrusions'
 import type { GraphNode, TrailAccess, Vec3 } from '../graph/types'
 import { formatWorkDelta } from '../inspector/format'
 
@@ -19,23 +20,28 @@ const markerColors: Record<NonNullable<TrailAccess['work_status']>, string> = {
 interface HoveredWork {
   access: TrailAccess
   position: Vec3
+  clamped: boolean
 }
 
 export function WorkExtrusions({
   nodes,
   trail,
+  scale = 'log',
+  visualCapLines,
   onInspect,
 }: {
   nodes: readonly GraphNode[]
   trail: readonly TrailAccess[]
+  scale?: DurationScale
+  visualCapLines?: number
   onInspect: (access: TrailAccess) => void
 }) {
   const endpoints = useRef<InstancedMesh>(null)
   const markers = useRef<InstancedMesh>(null)
   const [hovered, setHovered] = useState<HoveredWork>()
   const geometry = useMemo(
-    () => buildWorkGeometry(trail, nodes),
-    [nodes, trail],
+    () => buildWorkGeometry(trail, nodes, scale, visualCapLines),
+    [nodes, scale, trail, visualCapLines],
   )
   const positions = useMemo(
     () =>
@@ -122,7 +128,11 @@ export function WorkExtrusions({
                   ? undefined
                   : geometry.segments[event.instanceId]
               if (segment)
-                setHovered({ access: segment.access, position: segment.end })
+                setHovered({
+                  access: segment.access,
+                  position: segment.end,
+                  clamped: segment.clamped,
+                })
             }}
             onPointerOut={() => setHovered(undefined)}
             onClick={(event) => {
@@ -151,7 +161,11 @@ export function WorkExtrusions({
                 ? undefined
                 : geometry.markers[event.instanceId]
             if (marker)
-              setHovered({ access: marker.access, position: marker.position })
+              setHovered({
+                access: marker.access,
+                position: marker.position,
+                clamped: false,
+              })
           }}
           onPointerOut={() => setHovered(undefined)}
           onClick={(event) => {
@@ -187,6 +201,9 @@ export function WorkExtrusions({
               {hovered.access.work_source ?? 'unknown'} ·{' '}
               {hovered.access.work_confidence ?? 'inferred'}
             </small>
+            {hovered.clamped && (
+              <small>Visual cap applied; exact values shown</small>
+            )}
           </span>
         </Html>
       )}

@@ -26,4 +26,8 @@ Each work result uses the same deterministic surface anchor as its access point:
 - exact `+N / -N` values remain available after visual clamping;
 - empty, unknown, binary, unsupported-encoding, and pending states use inspectable markers.
 
-Positive work sizes use a minimum visible length, logarithmic scaling by default, and a 1,000-line visual cap. The exact count is never changed by that cap. Linear scaling is also available for the P5-S4 controls.
+Positive work sizes use a minimum visible length, logarithmic scaling by
+default, and a 1,000-line visual cap. P5-S4 adds a shared Time/Work scale
+selector and selectable 100, 1,000, or 10,000-line work caps. The exact count
+is never changed by those controls; tooltips and the inspector retain the
+recorded `+N / -N` values.

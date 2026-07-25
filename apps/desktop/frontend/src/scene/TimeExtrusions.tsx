@@ -13,19 +13,21 @@ export function TimeExtrusions({
   trail,
   nowMs,
   scale = 'log',
+  visualCapMs,
   onInspect,
 }: {
   nodes: readonly GraphNode[]
   trail: readonly TrailAccess[]
   nowMs: number
   scale?: DurationScale
+  visualCapMs?: number
   onInspect: (access: TrailAccess) => void
 }) {
   const endpoints = useRef<InstancedMesh>(null)
   const [hovered, setHovered] = useState<number>()
   const extrusions = useMemo(
-    () => buildTimeExtrusions(trail, nodes, nowMs, scale),
-    [nodes, nowMs, scale, trail],
+    () => buildTimeExtrusions(trail, nodes, nowMs, scale, visualCapMs),
+    [nodes, nowMs, scale, trail, visualCapMs],
   )
   const positions = useMemo(
     () =>
@@ -94,6 +96,9 @@ export function TimeExtrusions({
             <small>
               {selected.active ? 'Active interval' : 'Completed interval'}
             </small>
+            {selected.clamped && (
+              <small>Visual cap applied; exact value shown</small>
+            )}
             <small>
               {selected.access.source} · {selected.access.confidence}
             </small>

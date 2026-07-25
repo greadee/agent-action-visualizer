@@ -36,6 +36,19 @@ describe('App', () => {
     fireEvent.click(work)
     expect(time.getAttribute('aria-pressed')).toBe('false')
     expect(work.getAttribute('aria-pressed')).toBe('true')
+    expect(
+      screen.getByRole('combobox', { name: 'Activity visual scale' }),
+    ).toHaveProperty('value', 'log')
+    expect(
+      screen.getByRole('combobox', { name: 'Work visual cap' }),
+    ).toHaveProperty('value', '1000')
+    fireEvent.change(
+      screen.getByRole('combobox', { name: 'Activity visual scale' }),
+      {
+        target: { value: 'linear' },
+      },
+    )
+    expect(screen.getByText(/Linear visual scale/)).toBeTruthy()
   })
 
   it('loads deterministic addition, deletion, mixed, and unknown work review states', async () => {

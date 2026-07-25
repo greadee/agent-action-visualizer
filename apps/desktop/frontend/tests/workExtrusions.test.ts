@@ -97,6 +97,30 @@ describe('work extrusions', () => {
     expect(segment.clamped).toBe(true)
   })
 
+  it('uses the selected visual cap without changing exact replay values', () => {
+    const trail = [
+      access(1, { lines_added: 100, lines_deleted: 0, work_status: 'known' }),
+      access(2, {
+        lines_added: 10_000,
+        lines_deleted: 0,
+        work_status: 'known',
+      }),
+    ]
+    const first = buildWorkGeometry(trail, [node], 'linear', 1_000)
+    const replay = buildWorkGeometry(trail, [node], 'linear', 1_000)
+    const wide = buildWorkGeometry(trail, [node], 'linear', 10_000)
+
+    expect(first).toEqual(replay)
+    expect(first.segments.map((segment) => segment.value)).toEqual([
+      100, 10_000,
+    ])
+    expect(first.segments[1]?.clamped).toBe(true)
+    expect(wide.segments[1]?.clamped).toBe(false)
+    expect(first.segments[0]?.length).toBeGreaterThan(
+      wide.segments[0]?.length ?? 0,
+    )
+  })
+
   it('creates inspectable markers for empty, unknown, binary, and unsupported work', () => {
     const geometry = buildWorkGeometry(
       [

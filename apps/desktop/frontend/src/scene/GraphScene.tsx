@@ -2,6 +2,7 @@ import { Html } from '@react-three/drei'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Color, InstancedMesh, Matrix4, Vector3 } from 'three'
 import type { ActivityMode } from '../activity/extrusions'
+import type { ActivityDisplaySettings } from '../activity/displaySettings'
 import { CameraFocusController } from '../camera/CameraFocusController'
 import { nodeColors } from '../graph/palette'
 import type { GraphSnapshot, LiveFocusState, TrailAccess } from '../graph/types'
@@ -31,6 +32,7 @@ export function GraphScene({
   completeTrail,
   hideTrailRepeats,
   activityMode,
+  activitySettings,
   focusState,
   cameraFocusId,
   onSelect,
@@ -49,6 +51,7 @@ export function GraphScene({
   completeTrail: boolean
   hideTrailRepeats: boolean
   activityMode: ActivityMode
+  activitySettings: ActivityDisplaySettings
   focusState?: LiveFocusState
   cameraFocusId?: string
   onSelect: (id: string) => void
@@ -161,6 +164,8 @@ export function GraphScene({
           nodes={graph.nodes}
           trail={focusState?.trail ?? []}
           nowMs={nowMs}
+          scale={activitySettings.scale}
+          visualCapMs={activitySettings.durationCapMs}
           onInspect={onInspectAccess}
         />
       )}
@@ -168,6 +173,8 @@ export function GraphScene({
         <WorkExtrusions
           nodes={graph.nodes}
           trail={focusState?.trail ?? []}
+          scale={activitySettings.scale}
+          visualCapLines={activitySettings.workCapLines}
           onInspect={onInspectAccess}
         />
       )}

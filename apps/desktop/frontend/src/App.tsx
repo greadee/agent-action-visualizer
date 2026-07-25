@@ -3,6 +3,12 @@ import { Canvas } from '@react-three/fiber'
 import { useEffect, useRef, useState } from 'react'
 import './App.css'
 import type { ActivityMode } from './activity/extrusions'
+import {
+  DEFAULT_ACTIVITY_DISPLAY_SETTINGS,
+  DURATION_VISUAL_CAPS_MS,
+  WORK_VISUAL_CAPS_LINES,
+  formatVisualCap,
+} from './activity/displaySettings'
 import { useGraphBridge } from './bridge/useGraphBridge'
 import { demoGraph } from './graph/demoGraph'
 import type { LiveFocusState, TrailAccess } from './graph/types'
@@ -27,6 +33,9 @@ function App() {
   const [completeTrail, setCompleteTrail] = useState(false)
   const [hideTrailRepeats, setHideTrailRepeats] = useState(true)
   const [activityMode, setActivityMode] = useState<ActivityMode>('time')
+  const [activitySettings, setActivitySettings] = useState(
+    DEFAULT_ACTIVITY_DISPLAY_SETTINGS,
+  )
   const [projectPath, setProjectPath] = useState('')
   const [projectError, setProjectError] = useState('')
   const [displayedFocus, setDisplayedFocus] = useState<LiveFocusState>()
@@ -408,6 +417,62 @@ function App() {
             value={activityMode}
             onChange={setActivityMode}
           />
+          <label className="panel__label" htmlFor="activity-scale">
+            VISUAL SCALE
+          </label>
+          <select
+            id="activity-scale"
+            aria-label="Activity visual scale"
+            value={activitySettings.scale}
+            onChange={(event) =>
+              setActivitySettings((settings) => ({
+                ...settings,
+                scale: event.target.value === 'linear' ? 'linear' : 'log',
+              }))
+            }
+          >
+            <option value="log">Logarithmic</option>
+            <option value="linear">Linear</option>
+          </select>
+          <label className="panel__label" htmlFor="activity-visual-cap">
+            {activityMode === 'time'
+              ? 'DURATION VISUAL CAP'
+              : 'WORK VISUAL CAP'}
+          </label>
+          <select
+            id="activity-visual-cap"
+            aria-label={
+              activityMode === 'time'
+                ? 'Duration visual cap'
+                : 'Work visual cap'
+            }
+            value={
+              activityMode === 'time'
+                ? activitySettings.durationCapMs
+                : activitySettings.workCapLines
+            }
+            onChange={(event) => {
+              const cap = Number(event.target.value)
+              setActivitySettings((settings) =>
+                activityMode === 'time'
+                  ? { ...settings, durationCapMs: cap }
+                  : { ...settings, workCapLines: cap },
+              )
+            }}
+          >
+            {(activityMode === 'time'
+              ? DURATION_VISUAL_CAPS_MS
+              : WORK_VISUAL_CAPS_LINES
+            ).map((cap) => (
+              <option key={cap} value={cap}>
+                {formatVisualCap(activityMode, cap)}
+              </option>
+            ))}
+          </select>
+          <p className="activity-scale-note" aria-live="polite">
+            Visual cap changes length only. Exact durations and line counts stay
+            available in tooltips and the inspector.
+          </p>
           <div className="rule" />
           <label className="panel__label" htmlFor="layout-select">
             LAYOUT
@@ -507,7 +572,10 @@ function App() {
               </label>
             </div>
           )}
-          <GraphLegend activityMode={activityMode} />
+          <GraphLegend
+            activityMode={activityMode}
+            activitySettings={activitySettings}
+          />
         </aside>
         <div className="viewport">
           <Canvas camera={{ position: [0, 0, 28], fov: 48 }}>
@@ -525,6 +593,7 @@ function App() {
               completeTrail={completeTrail}
               hideTrailRepeats={hideTrailRepeats}
               activityMode={activityMode}
+              activitySettings={activitySettings}
               focusState={displayedFocus}
               cameraFocusId={cameraFocusId}
               onSelect={inspectNode}
@@ -561,7 +630,12 @@ function App() {
             <p>Orbit, zoom, and select a node. Source stays on this machine.</p>
           </div>
         </div>
-        <NodeInspector node={selected} access={selectedAccess} />
+        <NodeInspector
+          node={selected}
+          access={selectedAccess}
+          activityMode={activityMode}
+          activitySettings={activitySettings}
+        />
       </section>
     </main>
   )

@@ -2,6 +2,11 @@ import { VisuallyHidden } from '@prool-ui/react'
 import { nodeColors } from '../graph/palette'
 import type { GraphNode } from '../graph/types'
 import type { ActivityMode } from '../activity/extrusions'
+import {
+  activityVisualCap,
+  formatVisualCap,
+  type ActivityDisplaySettings,
+} from '../activity/displaySettings'
 
 const kinds: GraphNode['kind'][] = [
   'root',
@@ -15,7 +20,17 @@ const kinds: GraphNode['kind'][] = [
   'tombstone',
 ]
 
-export function GraphLegend({ activityMode }: { activityMode: ActivityMode }) {
+export function GraphLegend({
+  activityMode,
+  activitySettings,
+}: {
+  activityMode: ActivityMode
+  activitySettings: ActivityDisplaySettings
+}) {
+  const visualCap = formatVisualCap(
+    activityMode,
+    activityVisualCap(activityMode, activitySettings),
+  )
   return (
     <div className="legend" aria-labelledby="graph-legend-heading">
       <VisuallyHidden id="graph-legend-heading">Graph legend</VisuallyHidden>
@@ -36,6 +51,10 @@ export function GraphLegend({ activityMode }: { activityMode: ActivityMode }) {
         {activityMode === 'time'
           ? 'outward line = access duration'
           : 'outward = additions · inward = deletions'}
+      </span>
+      <span className="legend__wide">
+        {activitySettings.scale === 'log' ? 'Logarithmic' : 'Linear'} visual
+        scale, capped at {visualCap}; exact values remain inspectable
       </span>
       <span>
         <i className="legend__access-point" /> access point

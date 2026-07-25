@@ -307,6 +307,12 @@ select {
   color: #091215;
   background: #7be4ce;
 }
+.activity-scale-note {
+  margin: 2px 0 0;
+  color: #7890a7;
+  font-size: 10px;
+  line-height: 1.45;
+}
 .viewport {
   position: relative;
   min-height: 0;
