@@ -1,11 +1,13 @@
 package main
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
+	workdiff "github.com/greadee/agent-action-visualizer/internal/diff"
 	protocol "github.com/greadee/agent-action-visualizer/protocol/go"
 )
 
@@ -14,7 +16,7 @@ func TestLoadAndRefreshProject(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, "main.go"), []byte("package main"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	app := NewApp()
+	app := newTestApp(t)
 	initial, err := app.LoadProject(root)
 	if err != nil {
 		t.Fatal(err)
@@ -41,7 +43,7 @@ func TestPublishActivityEventMapsLiveFocusNodes(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	app := NewApp()
+	app := newTestApp(t)
 	graph, err := app.LoadProject(root)
 	if err != nil {
 		t.Fatal(err)
@@ -94,7 +96,7 @@ func TestPublishActivityEventRejectsEscapingSecondaryPath(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, "main.go"), []byte("package main"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	app := NewApp()
+	app := newTestApp(t)
 	if _, err := app.LoadProject(root); err != nil {
 		t.Fatal(err)
 	}
@@ -107,6 +109,58 @@ func TestPublishActivityEventRejectsEscapingSecondaryPath(t *testing.T) {
 	if _, err := app.PublishActivityEvent(event); err == nil {
 		t.Fatal("expected escaping secondary path to be rejected")
 	}
+}
+
+func TestStructuredWorkDeltaUpdatesAsynchronously(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "main.go"), []byte("package main"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	app := newTestApp(t)
+	if _, err := app.LoadProject(root); err != nil {
+		t.Fatal(err)
+	}
+	base := time.Unix(1000, 0).UTC()
+	if _, err := app.PublishActivityEvent(activityEvent("start", protocol.EventSessionStarted, "", base)); err != nil {
+		t.Fatal(err)
+	}
+	added, deleted := int64(14), int64(6)
+	event := activityEvent("work", protocol.EventFilePatched, "main.go", base.Add(time.Second))
+	event.LinesAdded, event.LinesDeleted = &added, &deleted
+	focus, err := app.PublishActivityEvent(event)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if focus.Trail[0].WorkStatus != workdiff.StatusPending {
+		t.Fatalf("submission blocked on delta work: %#v", focus.Trail[0])
+	}
+	deadline := time.Now().Add(time.Second)
+	for {
+		state, stateErr := app.focus.State("review-session")
+		if stateErr != nil {
+			t.Fatal(stateErr)
+		}
+		interval := state.Intervals[0]
+		if interval.WorkStatus == workdiff.StatusKnown {
+			if interval.LinesAdded == nil || *interval.LinesAdded != added ||
+				interval.LinesDeleted == nil || *interval.LinesDeleted != deleted ||
+				interval.WorkSource != workdiff.SourceStructuredPatch {
+				t.Fatalf("incorrect asynchronous work result: %+v", interval)
+			}
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("timed out waiting for work result: %+v", interval)
+		}
+		time.Sleep(time.Millisecond)
+	}
+}
+
+func newTestApp(t *testing.T) *App {
+	t.Helper()
+	app := NewApp()
+	t.Cleanup(func() { app.shutdown(context.Background()) })
+	return app
 }
 
 func activityEvent(id string, kind protocol.EventType, path string, at time.Time) protocol.Event {

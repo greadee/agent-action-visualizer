@@ -20,6 +20,9 @@ describe('App', () => {
     expect(
       screen.getByRole('button', { name: 'Add duration review batch' }),
     ).toBeTruthy()
+    expect(
+      screen.getByRole('button', { name: 'Add work review batch' }),
+    ).toBeTruthy()
     expect(screen.getByText('Absent — static scan')).toBeTruthy()
   })
 
@@ -33,6 +36,20 @@ describe('App', () => {
     fireEvent.click(work)
     expect(time.getAttribute('aria-pressed')).toBe('false')
     expect(work.getAttribute('aria-pressed')).toBe('true')
+  })
+
+  it('loads deterministic addition, deletion, mixed, and unknown work review states', async () => {
+    render(<App />)
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Add work review batch' }),
+    )
+    await waitFor(() =>
+      expect(screen.getByText('7 of 7 accesses')).toBeTruthy(),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Work' }))
+    expect(
+      screen.getByText('outward = additions · inward = deletions'),
+    ).toBeTruthy()
   })
 
   it('advances deterministic focus and freezes the displayed state while paused', async () => {

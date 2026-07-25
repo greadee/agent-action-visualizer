@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/greadee/agent-action-visualizer/internal/activity"
+	workdiff "github.com/greadee/agent-action-visualizer/internal/diff"
 	"github.com/greadee/agent-action-visualizer/internal/graph"
 	"github.com/greadee/agent-action-visualizer/internal/ingest"
 	"github.com/greadee/agent-action-visualizer/internal/project"
@@ -23,14 +24,27 @@ type App struct {
 	identity *graph.IdentityRegistry
 	snapshot graph.GraphSnapshot
 	focus    *session.Engine
+	diffs    *workdiff.Pipeline
+	diffDone chan struct{}
 }
 
 func NewApp() *App {
-	return &App{focus: session.NewEngine(2 * time.Minute)}
+	app := &App{
+		focus:    session.NewEngine(2 * time.Minute),
+		diffs:    workdiff.NewPipeline(64, 16, workdiff.NewCommandGitRunner(2*time.Second)),
+		diffDone: make(chan struct{}),
+	}
+	go app.consumeDiffResults()
+	return app
 }
 
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+}
+
+func (a *App) shutdown(context.Context) {
+	a.diffs.Close()
+	<-a.diffDone
 }
 
 // Health reports the embedded collector shell state without network access.
@@ -81,16 +95,21 @@ type liveFocusDTO struct {
 }
 
 type trailAccessDTO struct {
-	Sequence   int                 `json:"sequence"`
-	NodeID     string              `json:"node_id,omitempty"`
-	Path       string              `json:"path"`
-	StartedAt  time.Time           `json:"started_at"`
-	EndedAt    *time.Time          `json:"ended_at,omitempty"`
-	DurationMS int64               `json:"duration_ms"`
-	Operations []string            `json:"operations"`
-	Source     protocol.SourceType `json:"source"`
-	Confidence protocol.Confidence `json:"confidence"`
-	AgentID    string              `json:"agent_id,omitempty"`
+	Sequence       int                 `json:"sequence"`
+	NodeID         string              `json:"node_id,omitempty"`
+	Path           string              `json:"path"`
+	StartedAt      time.Time           `json:"started_at"`
+	EndedAt        *time.Time          `json:"ended_at,omitempty"`
+	DurationMS     int64               `json:"duration_ms"`
+	Operations     []string            `json:"operations"`
+	Source         protocol.SourceType `json:"source"`
+	Confidence     protocol.Confidence `json:"confidence"`
+	AgentID        string              `json:"agent_id,omitempty"`
+	LinesAdded     *int64              `json:"lines_added,omitempty"`
+	LinesDeleted   *int64              `json:"lines_deleted,omitempty"`
+	WorkStatus     workdiff.Status     `json:"work_status,omitempty"`
+	WorkSource     workdiff.Source     `json:"work_source,omitempty"`
+	WorkConfidence protocol.Confidence `json:"work_confidence,omitempty"`
 }
 
 // LoadProject scans metadata only, initializes stable identity, and publishes a full graph snapshot.
@@ -143,11 +162,75 @@ func (a *App) PublishActivityEvent(event protocol.Event) (liveFocusDTO, error) {
 	if err != nil {
 		return liveFocusDTO{}, err
 	}
+	state = a.submitDiff(normalized, state)
 	result := a.liveFocusDTO(state)
 	if a.ctx != nil {
 		wailsruntime.EventsEmit(a.ctx, "aav:focus", result)
 	}
 	return result, nil
+}
+
+func (a *App) submitDiff(event protocol.Event, state session.State) session.State {
+	if !workEvent(event.EventType) || event.Path == "" || len(state.Intervals) == 0 {
+		return state
+	}
+	interval := state.Intervals[len(state.Intervals)-1]
+	if interval.Path != event.Path {
+		return state
+	}
+	isBinary := event.IsBinary != nil && *event.IsBinary
+	outcome := a.diffs.Offer(workdiff.Request{
+		Key: event.EventID, SessionID: event.SessionID, Sequence: interval.Sequence,
+		ProjectRoot: a.root, Path: event.Path, StructuredAdded: event.LinesAdded,
+		StructuredDeleted: event.LinesDeleted, IsBinary: isBinary,
+		Confidence: event.SourceConfidence,
+	})
+	if outcome == workdiff.SubmitDuplicate {
+		return state
+	}
+	if outcome == workdiff.SubmitAccepted {
+		pending, err := a.focus.SetWorkResult(
+			event.SessionID, interval.Sequence, event.LinesAdded, event.LinesDeleted,
+			workdiff.StatusPending, workdiff.SourceUnknown, protocol.ConfidenceInferred,
+		)
+		if err == nil {
+			return pending
+		}
+		return state
+	}
+	fallback, err := a.focus.SetWorkResult(
+		event.SessionID, interval.Sequence, nil, nil, workdiff.StatusUnknown,
+		workdiff.SourceUnknown, protocol.ConfidenceInferred,
+	)
+	if err == nil {
+		return fallback
+	}
+	return state
+}
+
+func workEvent(eventType protocol.EventType) bool {
+	switch eventType {
+	case protocol.EventFileCreated, protocol.EventFileModified,
+		protocol.EventFilePatched, protocol.EventFileDeleted:
+		return true
+	default:
+		return false
+	}
+}
+
+func (a *App) consumeDiffResults() {
+	defer close(a.diffDone)
+	for result := range a.diffs.Results() {
+		a.mu.Lock()
+		state, err := a.focus.SetWorkResult(
+			result.SessionID, result.Sequence, result.LinesAdded, result.LinesDeleted,
+			result.Status, result.Source, result.Confidence,
+		)
+		if err == nil && a.ctx != nil {
+			wailsruntime.EventsEmit(a.ctx, "aav:focus", a.liveFocusDTO(state))
+		}
+		a.mu.Unlock()
+	}
 }
 
 func (a *App) normalizeSecondaryPaths(value interface{}) ([]string, error) {
@@ -222,7 +305,9 @@ func (a *App) trailDTOs(intervals []session.AccessInterval) []trailAccessDTO {
 			DurationMS: interval.Duration.Milliseconds(),
 			Operations: append([]string(nil), interval.Operations...),
 			Source:     interval.Source, Confidence: interval.Confidence,
-			AgentID: interval.AgentID,
+			AgentID: interval.AgentID, LinesAdded: interval.LinesAdded,
+			LinesDeleted: interval.LinesDeleted, WorkStatus: interval.WorkStatus,
+			WorkSource: interval.WorkSource, WorkConfidence: interval.WorkConfidence,
 		})
 	}
 	return result

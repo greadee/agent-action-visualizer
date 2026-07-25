@@ -1,7 +1,7 @@
 import { Html } from '@react-three/drei'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Color, InstancedMesh, Matrix4, Vector3 } from 'three'
-import { buildExtrusions, type ActivityMode } from '../activity/extrusions'
+import type { ActivityMode } from '../activity/extrusions'
 import { CameraFocusController } from '../camera/CameraFocusController'
 import { nodeColors } from '../graph/palette'
 import type { GraphSnapshot, LiveFocusState, TrailAccess } from '../graph/types'
@@ -10,6 +10,7 @@ import { AccessPoints } from './AccessPoints'
 import { SessionTrail } from './SessionTrail'
 import { TimeExtrusions } from './TimeExtrusions'
 import { selectTrailAccesses, type TrailOptions } from './trail'
+import { WorkExtrusions } from './WorkExtrusions'
 
 const focusColors = {
   current: '#35ffd2',
@@ -55,7 +56,6 @@ export function GraphScene({
   onManualInteraction: () => void
 }) {
   const mesh = useRef<InstancedMesh>(null)
-  const activityPoints = useRef<InstancedMesh>(null)
   const [hovered, setHovered] = useState<number>()
   const [nowMs, setNowMs] = useState(() => Date.now())
   const selected = graph.nodes.find((n) => n.id === selectedId)
@@ -132,10 +132,6 @@ export function GraphScene({
       ]),
     )
   }, [graph])
-  const extrusions = useMemo(
-    () => buildExtrusions(graph.nodes, activityMode),
-    [activityMode, graph.nodes],
-  )
   const hasActiveTimeInterval =
     activityMode === 'time' &&
     Boolean(focusState?.trail.some((access) => !access.ended_at))
@@ -144,26 +140,6 @@ export function GraphScene({
     const timer = window.setInterval(() => setNowMs(Date.now()), 250)
     return () => window.clearInterval(timer)
   }, [hasActiveTimeInterval])
-  const activityPositions = useMemo(
-    () =>
-      new Float32Array(
-        extrusions.flatMap((extrusion) => [
-          ...extrusion.start,
-          ...extrusion.end,
-        ]),
-      ),
-    [extrusions],
-  )
-  useLayoutEffect(() => {
-    const matrix = new Matrix4()
-    extrusions.forEach((extrusion, index) => {
-      matrix.makeTranslation(...extrusion.end)
-      activityPoints.current?.setMatrixAt(index, matrix)
-    })
-    if (activityPoints.current) {
-      activityPoints.current.instanceMatrix.needsUpdate = true
-    }
-  }, [extrusions, showActivity])
   const hoverNode = hovered === undefined ? undefined : graph.nodes[hovered]
   return (
     <>
@@ -188,25 +164,12 @@ export function GraphScene({
           onInspect={onInspectAccess}
         />
       )}
-      {showActivity && activityMode === 'work' && extrusions.length > 0 && (
-        <>
-          <lineSegments>
-            <bufferGeometry>
-              <bufferAttribute
-                attach="attributes-position"
-                args={[activityPositions, 3]}
-              />
-            </bufferGeometry>
-            <lineBasicMaterial color="#5ce0c4" />
-          </lineSegments>
-          <instancedMesh
-            ref={activityPoints}
-            args={[undefined, undefined, extrusions.length]}
-          >
-            <sphereGeometry args={[0.12, 10, 10]} />
-            <meshBasicMaterial color="#9affea" />
-          </instancedMesh>
-        </>
+      {showActivity && activityMode === 'work' && (
+        <WorkExtrusions
+          nodes={graph.nodes}
+          trail={focusState?.trail ?? []}
+          onInspect={onInspectAccess}
+        />
       )}
       {showAccessPoints && (
         <AccessPoints nodes={graph.nodes} trail={focusState?.trail ?? []} />

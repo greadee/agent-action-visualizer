@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	workdiff "github.com/greadee/agent-action-visualizer/internal/diff"
 	protocol "github.com/greadee/agent-action-visualizer/protocol/go"
 )
 
@@ -122,5 +123,29 @@ func TestFocusStateCarriesOperationAndSecondaryPaths(t *testing.T) {
 	}
 	if len(state.SecondaryPaths) != 2 || state.SecondaryPaths[0] != "a.go" || state.SecondaryPaths[1] != "c.go" {
 		t.Fatalf("secondary paths not normalized: %#v", state.SecondaryPaths)
+	}
+}
+
+func TestAsynchronousWorkResultUpdatesExactInterval(t *testing.T) {
+	base := time.Unix(1000, 0)
+	engine := NewEngine(time.Minute)
+	start(t, engine, "s", base)
+	engine.Apply(ev("s", protocol.EventFilePatched, "a.go", base, protocol.ConfidenceExact))
+	engine.Apply(ev("s", protocol.EventFilePatched, "b.go", base.Add(time.Second), protocol.ConfidenceExact))
+	added, deleted := int64(12), int64(4)
+	state, err := engine.SetWorkResult(
+		"s", 1, &added, &deleted, workdiff.StatusKnown,
+		workdiff.SourceStructuredPatch, protocol.ConfidenceExact,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state.Intervals[0].LinesAdded == nil || *state.Intervals[0].LinesAdded != 12 ||
+		state.Intervals[0].LinesDeleted == nil || *state.Intervals[0].LinesDeleted != 4 {
+		t.Fatalf("work result not attached: %+v", state.Intervals)
+	}
+	if state.Intervals[0].WorkSource != workdiff.SourceStructuredPatch ||
+		state.Intervals[1].LinesAdded != nil {
+		t.Fatalf("work provenance or target incorrect: %+v", state.Intervals)
 	}
 }

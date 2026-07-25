@@ -19,6 +19,11 @@ const access: TrailAccess = {
   operations: ['patch'],
   source: 'native_hook',
   confidence: 'exact',
+  lines_added: 8,
+  lines_deleted: 3,
+  work_status: 'known',
+  work_source: 'structured_patch',
+  work_confidence: 'exact',
 }
 
 it('shows the selected access interval with its exact duration', () => {
@@ -27,4 +32,6 @@ it('shows the selected access interval with its exact duration', () => {
   expect(screen.getByText('1s 250ms')).toBeTruthy()
   expect(screen.getByText('Completed')).toBeTruthy()
   expect(screen.getByText('native_hook · exact')).toBeTruthy()
+  expect(screen.getByText('+8 / -3')).toBeTruthy()
+  expect(screen.getByText('structured_patch · exact')).toBeTruthy()
 })

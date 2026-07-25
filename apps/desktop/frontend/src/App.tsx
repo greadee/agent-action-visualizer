@@ -65,6 +65,14 @@ function App() {
   }, [liveFocus])
 
   useEffect(() => {
+    if (!selectedAccess || !displayedFocus) return
+    const updated = displayedFocus.trail.find(
+      (access) => access.sequence === selectedAccess.sequence,
+    )
+    if (updated && updated !== selectedAccess) setSelectedAccess(updated)
+  }, [displayedFocus, selectedAccess])
+
+  useEffect(() => {
     if (livePaused || !liveFocus) return
     setDisplayedFocus(liveFocus)
     if (autoFollow && !manualHold && liveFocus.active_node_id) {
@@ -206,6 +214,49 @@ function App() {
     await emit('p5-duration-active', 1, -1_000)
   }
 
+  async function addWorkReviewBatch() {
+    const candidates = graph.nodes.filter(
+      (node) => node.kind !== 'root' && node.kind !== 'directory',
+    )
+    if (candidates.length < 3) return
+    const now = Date.now()
+    const sessionID = `p5-work-review-${now}`
+    await publishActivityEvent({
+      schema_version: '1.0',
+      event_id: 'p5-work-start',
+      session_id: sessionID,
+      source_type: 'synthetic',
+      source_confidence: 'exact',
+      event_type: 'session_started',
+      timestamp: new Date(now).toISOString(),
+    })
+    const review = [
+      { added: 18, deleted: 0 },
+      { added: 0, deleted: 12 },
+      { added: 25, deleted: 9 },
+      { added: 0, deleted: 0 },
+      {},
+      { binary: true },
+      { added: 10_000, deleted: 5_000 },
+    ]
+    for (const [index, delta] of review.entries()) {
+      await publishActivityEvent({
+        schema_version: '1.0',
+        event_id: `p5-work-${index}`,
+        session_id: sessionID,
+        source_type: 'synthetic',
+        source_confidence: 'exact',
+        event_type: 'file_patched',
+        operation: 'patch',
+        timestamp: new Date(now + index + 1).toISOString(),
+        path: candidates[index % candidates.length]?.path,
+        lines_added: delta.added,
+        lines_deleted: delta.deleted,
+        is_binary: delta.binary,
+      })
+    }
+  }
+
   return (
     <main className="shell">
       <header className="topbar">
@@ -338,6 +389,9 @@ function App() {
                   onClick={() => void addDurationReviewBatch()}
                 >
                   Add duration review batch
+                </button>
+                <button type="button" onClick={() => void addWorkReviewBatch()}>
+                  Add work review batch
                 </button>
               </>
             )}

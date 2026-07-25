@@ -6,22 +6,26 @@ import (
 	"sync"
 	"time"
 
+	workdiff "github.com/greadee/agent-action-visualizer/internal/diff"
 	protocol "github.com/greadee/agent-action-visualizer/protocol/go"
 )
 
 type AccessInterval struct {
-	Sequence     int                 `json:"sequence"`
-	NodeID       string              `json:"node_id,omitempty"`
-	Path         string              `json:"path"`
-	StartedAt    time.Time           `json:"started_at"`
-	EndedAt      *time.Time          `json:"ended_at,omitempty"`
-	Duration     time.Duration       `json:"duration"`
-	Operations   []string            `json:"operations"`
-	Source       protocol.SourceType `json:"source"`
-	Confidence   protocol.Confidence `json:"confidence"`
-	AgentID      string              `json:"agent_id,omitempty"`
-	LinesAdded   *int64              `json:"lines_added,omitempty"`
-	LinesDeleted *int64              `json:"lines_deleted,omitempty"`
+	Sequence       int                 `json:"sequence"`
+	NodeID         string              `json:"node_id,omitempty"`
+	Path           string              `json:"path"`
+	StartedAt      time.Time           `json:"started_at"`
+	EndedAt        *time.Time          `json:"ended_at,omitempty"`
+	Duration       time.Duration       `json:"duration"`
+	Operations     []string            `json:"operations"`
+	Source         protocol.SourceType `json:"source"`
+	Confidence     protocol.Confidence `json:"confidence"`
+	AgentID        string              `json:"agent_id,omitempty"`
+	LinesAdded     *int64              `json:"lines_added,omitempty"`
+	LinesDeleted   *int64              `json:"lines_deleted,omitempty"`
+	WorkStatus     workdiff.Status     `json:"work_status,omitempty"`
+	WorkSource     workdiff.Source     `json:"work_source,omitempty"`
+	WorkConfidence protocol.Confidence `json:"work_confidence,omitempty"`
 }
 
 type State struct {
@@ -160,6 +164,38 @@ func (e *Engine) Advance(sessionID string, now time.Time) (State, error) {
 	return clone(s), nil
 }
 
+func (e *Engine) SetWorkResult(sessionID string, sequence int, added, deleted *int64, status workdiff.Status, source workdiff.Source, confidence protocol.Confidence) (State, error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	s := e.sessions[sessionID]
+	if s == nil {
+		return State{}, errors.New("unknown session")
+	}
+	for index := range s.Intervals {
+		interval := &s.Intervals[index]
+		if interval.Sequence != sequence {
+			continue
+		}
+		interval.LinesAdded = cloneNumber(added)
+		interval.LinesDeleted = cloneNumber(deleted)
+		interval.WorkStatus = status
+		interval.WorkSource = source
+		interval.WorkConfidence = confidence
+		return clone(s), nil
+	}
+	return State{}, errors.New("unknown access interval")
+}
+
+func (e *Engine) State(sessionID string) (State, error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	s := e.sessions[sessionID]
+	if s == nil {
+		return State{}, errors.New("unknown session")
+	}
+	return clone(s), nil
+}
+
 func (e *Engine) closeCurrent(s *State, at time.Time) {
 	c := current(s)
 	if c == nil || c.EndedAt != nil {
@@ -222,6 +258,14 @@ func mergeDelta(interval *AccessInterval, event protocol.Event) {
 	if event.LinesDeleted != nil {
 		interval.LinesDeleted = event.LinesDeleted
 	}
+}
+
+func cloneNumber(value *int64) *int64 {
+	if value == nil {
+		return nil
+	}
+	copy := *value
+	return &copy
 }
 func secondaryPaths(metadata map[string]interface{}) []string {
 	value, ok := metadata["secondary_paths"]

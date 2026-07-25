@@ -71,6 +71,18 @@ export interface TrailAccess {
   source: string
   confidence: string
   agent_id?: string
+  lines_added?: number
+  lines_deleted?: number
+  work_status?:
+    | 'known'
+    | 'empty'
+    | 'unknown'
+    | 'binary'
+    | 'unsupported_encoding'
+    | 'pending'
+  work_source?:
+    'structured_patch' | 'correlated_snapshot' | 'git_numstat' | 'unknown'
+  work_confidence?: string
 }
 
 export interface ActivityEvent {
@@ -83,5 +95,8 @@ export interface ActivityEvent {
   operation?: string
   timestamp: string
   path?: string
+  lines_added?: number
+  lines_deleted?: number
+  is_binary?: boolean
   metadata?: { secondary_paths?: string[] }
 }

@@ -7,7 +7,7 @@ describe('GraphLegend shared UI integration', () => {
     render(<GraphLegend activityMode="time" />)
 
     expect(screen.getByLabelText('Graph legend')).toBeTruthy()
-    expect(screen.getByText('outward line = reported time')).toBeTruthy()
+    expect(screen.getByText('outward line = access duration')).toBeTruthy()
     expect(screen.getByText('current')).toBeTruthy()
     expect(screen.getByText('previous')).toBeTruthy()
   })

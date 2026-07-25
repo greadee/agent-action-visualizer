@@ -109,6 +109,27 @@ export function useGraphBridge(fallback: GraphSnapshot) {
               : [],
         ),
       )
+      const hasStructuredDelta =
+        event.lines_added !== undefined || event.lines_deleted !== undefined
+      const linesAdded = hasStructuredDelta
+        ? Math.max(0, event.lines_added ?? 0)
+        : sameAccess
+          ? lastAccess?.lines_added
+          : undefined
+      const linesDeleted = hasStructuredDelta
+        ? Math.max(0, event.lines_deleted ?? 0)
+        : sameAccess
+          ? lastAccess?.lines_deleted
+          : undefined
+      const workStatus = event.is_binary
+        ? ('binary' as const)
+        : hasStructuredDelta
+          ? linesAdded === 0 && linesDeleted === 0
+            ? ('empty' as const)
+            : ('known' as const)
+          : sameAccess
+            ? (lastAccess?.work_status ?? ('unknown' as const))
+            : ('unknown' as const)
       const nextAccess = {
         sequence: sameAccess
           ? (lastAccess?.sequence ?? previousTrail.length + 1)
@@ -122,6 +143,15 @@ export function useGraphBridge(fallback: GraphSnapshot) {
         operations,
         source: event.source_type,
         confidence: event.source_confidence,
+        lines_added: linesAdded,
+        lines_deleted: linesDeleted,
+        work_status: workStatus,
+        work_source: hasStructuredDelta
+          ? ('structured_patch' as const)
+          : ('unknown' as const),
+        work_confidence: hasStructuredDelta
+          ? event.source_confidence
+          : 'inferred',
       }
       return {
         session_id: event.session_id,

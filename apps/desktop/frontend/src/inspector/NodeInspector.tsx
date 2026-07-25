@@ -1,7 +1,12 @@
 import { useEffect, useState } from 'react'
 import { normalizedIntervalDuration } from '../activity/timeExtrusions'
 import type { GraphNode, TrailAccess } from '../graph/types'
-import { formatDuration, formatExactDuration, formatTimestamp } from './format'
+import {
+  formatDuration,
+  formatExactDuration,
+  formatTimestamp,
+  formatWorkDelta,
+} from './format'
 
 function parentPath(path: string): string {
   const separator = path.lastIndexOf('/')
@@ -88,6 +93,24 @@ export function NodeInspector({
                 <dd>{access.ended_at ? 'Completed' : 'Active'}</dd>
                 <dt>Operation</dt>
                 <dd>{access.operations.at(-1) ?? 'access'}</dd>
+                <dt>Work delta</dt>
+                <dd>
+                  {access.work_status === 'binary'
+                    ? 'Binary file'
+                    : access.work_status === 'unsupported_encoding'
+                      ? 'Unsupported encoding'
+                      : access.work_status === 'pending'
+                        ? 'Calculating'
+                        : formatWorkDelta(
+                            access.lines_added,
+                            access.lines_deleted,
+                          )}
+                </dd>
+                <dt>Work evidence</dt>
+                <dd>
+                  {access.work_source ?? 'unknown'} ·{' '}
+                  {access.work_confidence ?? 'inferred'}
+                </dd>
                 <dt>Evidence</dt>
                 <dd>
                   {access.source} · {access.confidence}

@@ -27,6 +27,15 @@ export function formatExactDuration(milliseconds: number | undefined): string {
     .join(' ')
 }
 
+export function formatWorkDelta(
+  linesAdded: number | undefined,
+  linesDeleted: number | undefined,
+): string {
+  if (linesAdded === undefined && linesDeleted === undefined)
+    return 'Work delta unknown'
+  return `+${Math.max(0, linesAdded ?? 0)} / -${Math.max(0, linesDeleted ?? 0)}`
+}
+
 export function formatTimestamp(unixSeconds: number | undefined): string {
   return unixSeconds
     ? new Date(unixSeconds * 1000).toLocaleString()

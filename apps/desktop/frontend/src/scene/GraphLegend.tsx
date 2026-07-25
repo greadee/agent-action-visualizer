@@ -33,7 +33,9 @@ export function GraphLegend({ activityMode }: { activityMode: ActivityMode }) {
       </span>
       <span className="legend__wide">
         <i className={`legend__activity legend__activity--${activityMode}`} />
-        outward line = reported {activityMode}
+        {activityMode === 'time'
+          ? 'outward line = access duration'
+          : 'outward = additions · inward = deletions'}
       </span>
       <span>
         <i className="legend__access-point" /> access point
