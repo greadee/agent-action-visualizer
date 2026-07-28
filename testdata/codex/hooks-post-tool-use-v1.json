@@ -1,0 +1,15 @@
+{
+  "session_id": "session-sanitized",
+  "transcript_path": null,
+  "cwd": "C:\\workspace\\fixture",
+  "hook_event_name": "PostToolUse",
+  "model": "model-sanitized",
+  "permission_mode": "default",
+  "turn_id": "turn-sanitized",
+  "tool_name": "apply_patch",
+  "tool_use_id": "tool-sanitized",
+  "tool_input": {
+    "command": "<redacted>"
+  },
+  "tool_response": "<redacted>"
+}

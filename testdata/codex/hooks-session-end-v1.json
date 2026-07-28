@@ -1,0 +1,8 @@
+{
+  "session_id": "session-sanitized",
+  "transcript_path": null,
+  "cwd": "C:\\workspace\\fixture",
+  "hook_event_name": "SessionEnd",
+  "model": "model-sanitized",
+  "reason": "other"
+}
