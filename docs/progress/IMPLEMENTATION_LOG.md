@@ -293,3 +293,17 @@
 - Known limitations: display preferences are session-local until P8 persisted preferences; the Three.js `Clock` deprecation warning is upstream and does not affect geometry behavior
 - Phase summary: every access retains a stable point; time and additions extend outward, deletions extend inward, and exact duration and work evidence remains inspectable after visual clamping across deterministic Time and Work replay
 - Next slice: P6-S1 - Codex research / verify
+
+## P6-S1 - Codex research / verify
+
+- Phase: 6
+- Slice: P6-S1
+- Feature: Codex integration
+- Action: Research and verify
+- Status: complete
+- Files changed: version-specific Codex compatibility evidence and sanitized lifecycle-hook/App Server contract fixtures; no adapter, hook configuration, or installation mutation
+- Tests run: fixture JSON parse; core and desktop Go tests/vet; `npm ci`; Prettier, ESLint, TypeScript, Vitest (34 tests), Vite production build, and Wails Windows production build
+- Benchmark result: not applicable; this verification-only slice introduces no runtime adapter. Production bundle remains 1,134.24 kB (312.75 kB gzip)
+- Commit SHA: `8df031c`
+- Known limitations: the installed Windows package directory identifies version `26.721.4979.0`, but this managed environment denied direct CLI execution; no trusted project hook was configured to exercise live payloads. Hooks do not cover every tool path, and App Server is not a documented passive existing-session observer
+- Next slice: P6-S2 - Codex hook / implement
