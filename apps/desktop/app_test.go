@@ -2,12 +2,16 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
 	workdiff "github.com/greadee/agent-action-visualizer/internal/diff"
+	localipc "github.com/greadee/agent-action-visualizer/internal/ipc"
 	protocol "github.com/greadee/agent-action-visualizer/protocol/go"
 )
 
@@ -156,6 +160,43 @@ func TestStructuredWorkDeltaUpdatesAsynchronously(t *testing.T) {
 	}
 }
 
+func TestLocalCollectorFeedsSessionPipeline(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "main.go"), []byte("package main"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	app := newTestApp(t)
+	if _, err := app.LoadProject(root); err != nil {
+		t.Fatal(err)
+	}
+	app.ipcEndpoint = desktopTestEndpoint(t.Name())
+	app.startCollector()
+	if app.Health()["collector"] != "ready" {
+		t.Fatalf("collector health = %#v", app.Health())
+	}
+	base := time.Unix(5_000, 0).UTC()
+	events := []protocol.Event{
+		activityEvent("ipc-start", protocol.EventSessionStarted, "", base),
+		activityEvent("ipc-read", protocol.EventFileRead, "main.go", base.Add(time.Second)),
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	if err := localipc.NewClient(app.ipcEndpoint).Send(ctx, events); err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.Now().Add(time.Second)
+	for {
+		state, err := app.focus.State("review-session")
+		if err == nil && state.ActivePath == "main.go" {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("collector event did not reach session pipeline: state=%#v err=%v", state, err)
+		}
+		time.Sleep(time.Millisecond)
+	}
+}
+
 func newTestApp(t *testing.T) *App {
 	t.Helper()
 	app := NewApp()
@@ -175,4 +216,12 @@ func activityEvent(id string, kind protocol.EventType, path string, at time.Time
 		Timestamp:        at,
 		Path:             path,
 	}
+}
+
+func desktopTestEndpoint(seed string) string {
+	sum := sha256.Sum256([]byte(seed))
+	if runtime.GOOS == "windows" {
+		return `\\.\pipe\aav-desktop-test-` + hex.EncodeToString(sum[:8])
+	}
+	return filepath.Join(os.TempDir(), "aav-desktop-test-"+hex.EncodeToString(sum[:8])+".sock")
 }

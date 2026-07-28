@@ -11,6 +11,7 @@ import (
 	workdiff "github.com/greadee/agent-action-visualizer/internal/diff"
 	"github.com/greadee/agent-action-visualizer/internal/graph"
 	"github.com/greadee/agent-action-visualizer/internal/ingest"
+	localipc "github.com/greadee/agent-action-visualizer/internal/ipc"
 	"github.com/greadee/agent-action-visualizer/internal/project"
 	"github.com/greadee/agent-action-visualizer/internal/session"
 	protocol "github.com/greadee/agent-action-visualizer/protocol/go"
@@ -18,14 +19,19 @@ import (
 )
 
 type App struct {
-	ctx      context.Context
-	mu       sync.Mutex
-	root     string
-	identity *graph.IdentityRegistry
-	snapshot graph.GraphSnapshot
-	focus    *session.Engine
-	diffs    *workdiff.Pipeline
-	diffDone chan struct{}
+	ctx             context.Context
+	mu              sync.Mutex
+	root            string
+	identity        *graph.IdentityRegistry
+	snapshot        graph.GraphSnapshot
+	focus           *session.Engine
+	diffs           *workdiff.Pipeline
+	diffDone        chan struct{}
+	events          *ingest.Collector
+	dedupe          *ingest.Deduper
+	ipc             *localipc.Server
+	ipcEndpoint     string
+	collectorStatus string
 }
 
 func NewApp() *App {
@@ -33,26 +39,58 @@ func NewApp() *App {
 		focus:    session.NewEngine(2 * time.Minute),
 		diffs:    workdiff.NewPipeline(64, 16, workdiff.NewCommandGitRunner(2*time.Second)),
 		diffDone: make(chan struct{}),
+		dedupe:   ingest.NewDeduper(10 * time.Minute),
 	}
+	app.events = ingest.NewCollector(256, func(_ context.Context, event protocol.Event) {
+		if app.dedupe.Duplicate(event, time.Now()) {
+			return
+		}
+		_, _ = app.PublishActivityEvent(event)
+	})
+	app.events.Start(context.Background())
 	go app.consumeDiffResults()
 	return app
 }
 
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+	a.startCollector()
 }
 
 func (a *App) shutdown(context.Context) {
+	if a.ipc != nil {
+		a.ipc.Close()
+	}
+	a.events.Stop()
 	a.diffs.Close()
 	<-a.diffDone
 }
 
 // Health reports the embedded collector shell state without network access.
 func (a *App) Health() map[string]string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
 	return map[string]string{
-		"service": "agent-action-visualizer",
-		"status":  "ready",
+		"service":   "agent-action-visualizer",
+		"status":    "ready",
+		"collector": a.collectorStatus,
 	}
+}
+
+func (a *App) startCollector() {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	endpoint := a.ipcEndpoint
+	if endpoint == "" {
+		endpoint = localipc.DefaultEndpoint()
+	}
+	server := localipc.NewServer(endpoint, a.events.Submit)
+	if err := server.Start(); err != nil {
+		a.collectorStatus = "unavailable"
+		return
+	}
+	a.ipc = server
+	a.collectorStatus = "ready"
 }
 
 type graphNodeDTO struct {

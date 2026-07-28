@@ -2,7 +2,10 @@ module github.com/greadee/agent-action-visualizer
 
 go 1.26.3
 
-require modernc.org/sqlite v1.54.0
+require (
+	github.com/Microsoft/go-winio v0.6.2
+	modernc.org/sqlite v1.54.0
+)
 
 require (
 	github.com/dustin/go-humanize v1.0.1 // indirect
