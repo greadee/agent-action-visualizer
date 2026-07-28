@@ -321,3 +321,17 @@
 - Commit SHA: `baa877d`
 - Known limitations: installer/status/uninstall and Codex trust/configuration mutation are deferred to P6-S3; live installed-Codex payload and end-to-end overhead validation remain P6-S4; hosted and ambiguous tool paths intentionally produce no file semantics; race tests were unavailable because the Windows Go environment has CGO disabled; `npm ci` continues to report one existing high-severity audit advisory
 - Next slice: P6-S3 - Codex installer / implement
+
+## P6-S3 - Codex installer / implement
+
+- Phase: 6
+- Slice: P6-S3
+- Feature: Codex installer
+- Action: Implement
+- Status: complete
+- Files changed: project-local and user-level `hooks.json` installer; install, uninstall, status, isolated test, and dry-run CLI surfaces; marked six-event hook merging; exact first-install backups; state and binary SHA-256 validation; recoverable same-directory writes; idempotent reinstall; Windows/POSIX quoting; bounded diagnostics; runtime ignore rules; isolated temporary-fixture tests; and installer documentation
+- Tests run: complete root and desktop Go tests/vet; installer tests for exact restoration, unrelated post-install changes, project/user scope, dry-run, idempotency, invalid JSON, backup/state mismatch, interrupted writes, unmanaged files, binary tampering, hook layout, and path quoting; executable-level project and user install/test/uninstall from Windows paths with spaces; `npm ci`; Prettier, ESLint, TypeScript, Vitest (34 tests), Vite production build, and Wails Windows production build
+- Benchmark result: not applicable; the installer is operator-invoked rather than an agent critical-path component. The installed-hook diagnostic completed successfully with exit code zero, empty stdout/stderr, and one sanitized event delivered over an isolated Windows named pipe
+- Commit SHA: `ebad63ecdb524cfd05b3175fcb1104a74d4b5f5d`
+- Known limitations: Codex project trust and hook review were not mutated or inferred; a real trusted Codex session remains P6-S4. The installer deliberately leaves unrelated inline `config.toml` hooks untouched, so Codex may warn when both representations exist in one layer. Executable-level installer validation was performed on Windows/amd64; macOS and Linux paths are covered by platform-neutral unit contracts but were not run on those hosts
+- Next slice: P6-S4 - Codex E2E / validate
