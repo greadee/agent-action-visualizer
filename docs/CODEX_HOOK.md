@@ -71,5 +71,6 @@ startup and measured a 6.890 ms five-run median (20 launches per run). It is
 the closest reproducible hook-overhead measurement without
 installing the hook into Codex; P6-S4 owns the real Codex end-to-end result.
 
-Installer, status, uninstall, trust review, and Codex configuration mutation
-belong to P6-S3 and are intentionally absent here.
+P6-S3 provides project/user install, dry-run, status, isolated test, and
+reversible uninstall behavior. See [the Codex installer guide](CODEX_INSTALLER.md).
+Codex trust review and a real disposable-session validation remain P6-S4.

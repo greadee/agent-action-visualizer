@@ -37,3 +37,10 @@ tmp/
 temp/
 *.log
 *.snapshot
+
+# Project-local Codex installer runtime state
+.codex/aav/
+.codex/.aav-codex-install.json
+.codex/hooks.json.aav-backup
+.codex/hooks.json.aav-swap
+.codex/.hooks.json.aav-tmp-*
