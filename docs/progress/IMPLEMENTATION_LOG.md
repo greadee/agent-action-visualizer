@@ -307,3 +307,17 @@
 - Commit SHA: `8df031c`
 - Known limitations: the installed Windows package directory identifies version `26.721.4979.0`, but this managed environment denied direct CLI execution; no trusted project hook was configured to exercise live payloads. Hooks do not cover every tool path, and App Server is not a documented passive existing-session observer
 - Next slice: P6-S2 - Codex hook / implement
+
+## P6-S2 - Codex hook / implement
+
+- Phase: 6
+- Slice: P6-S2
+- Feature: Codex lifecycle adapter
+- Action: Implement
+- Status: complete
+- Files changed: silent bounded Codex command-hook executable; metadata-only lifecycle/tool translation; structured `apply_patch` and recognized path extraction; deterministic correlation/deduplication; per-user Windows named-pipe and Unix-socket transport; bounded desktop ingress integration; sanitized fixtures; adapter, transport, subprocess, and desktop integration tests; compatibility and benchmark documentation
+- Tests run: complete root and desktop Go tests/vet; repeated hook/IPC tests; malformed, oversized, blocked-input, blocked-sender, disconnected-collector, silent-output, exit-code, path, delta, and process-level contract tests; Linux IPC test cross-compilation and hook cross-build; `npm ci`; Prettier, ESLint, TypeScript, Vitest (34 tests), Vite production build, and Wails Windows production build
+- Benchmark result: Windows/amd64 on AMD Ryzen 5 9600X with Go 1.26.3: five-run median 12.575 microseconds for bounded decode/translation/no-op send, 73.212 microseconds for a named-pipe round trip, and 6.890 milliseconds for the process-level hook round trip across 20 launches per run
+- Commit SHA: `baa877d`
+- Known limitations: installer/status/uninstall and Codex trust/configuration mutation are deferred to P6-S3; live installed-Codex payload and end-to-end overhead validation remain P6-S4; hosted and ambiguous tool paths intentionally produce no file semantics; race tests were unavailable because the Windows Go environment has CGO disabled; `npm ci` continues to report one existing high-severity audit advisory
+- Next slice: P6-S3 - Codex installer / implement
