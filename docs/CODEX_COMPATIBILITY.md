@@ -105,7 +105,7 @@ observed without wrapping it. P7 owns the generic wrapper path.
 | Exact duration | not yet verified | Hook timestamps can bracket local observations, but P6-S2 must validate ordering and idle handling before claiming exact duration. |
 | Exact work delta | unsupported by hooks alone | Requires structured patch evidence or the existing bounded diff pipeline; otherwise report unknown. |
 | Existing-session attachment | unsupported | No reviewed supported passive App Server attachment interface was found. |
-| Hook trust and configured runtime | unverified locally | This environment cannot execute the installed binary and has no configured project hook. P6-S2/P6-S4 must test a disposable trusted repository. |
+| Hook trust and configured runtime | reproducible protocol validated; live Codex unverified | P6-S4 validates the documented lifecycle protocol against a disposable Git fixture. The AppX CLI still returns `Access is denied`, so `/hooks` review and a real authenticated Codex turn require an executable host. |
 
 ## Sanitized fixtures
 

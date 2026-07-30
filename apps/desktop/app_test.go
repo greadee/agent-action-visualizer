@@ -197,6 +197,65 @@ func TestLocalCollectorFeedsSessionPipeline(t *testing.T) {
 	}
 }
 
+func TestNativeMoveAndDeletePreserveGraphIdentity(t *testing.T) {
+	root := t.TempDir()
+	oldPath := filepath.Join(root, "old.txt")
+	if err := os.WriteFile(oldPath, []byte("fixture"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	app := newTestApp(t)
+	initial, err := app.LoadProject(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	oldID := nodeIDForTest(initial, "old.txt")
+	if oldID == "" {
+		t.Fatalf("missing original node: %#v", initial)
+	}
+	base := time.Unix(6_000, 0).UTC()
+	if _, err := app.PublishActivityEvent(activityEvent("start", protocol.EventSessionStarted, "", base)); err != nil {
+		t.Fatal(err)
+	}
+	newPath := filepath.Join(root, "renamed.txt")
+	if err := os.Rename(oldPath, newPath); err != nil {
+		t.Fatal(err)
+	}
+	moved := activityEvent("move", protocol.EventFileMoved, "renamed.txt", base.Add(time.Second))
+	moved.PreviousPath = "old.txt"
+	focus, err := app.PublishActivityEvent(moved)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if focus.ActiveNodeID != oldID || focus.ActivePath != "renamed.txt" {
+		t.Fatalf("move focus=%#v", focus)
+	}
+	patch, err := app.RefreshProject()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if nodeIDForTest(graphSnapshotDTO{Nodes: patch.Updated}, "renamed.txt") != oldID {
+		t.Fatalf("rename patch=%#v", patch)
+	}
+	if err := os.Remove(newPath); err != nil {
+		t.Fatal(err)
+	}
+	deleted := activityEvent("delete", protocol.EventFileDeleted, "renamed.txt", base.Add(2*time.Second))
+	focus, err = app.PublishActivityEvent(deleted)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if focus.ActiveNodeID != oldID || focus.ActivePath != "renamed.txt" {
+		t.Fatalf("delete focus=%#v", focus)
+	}
+	patch, err = app.RefreshProject()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(patch.Updated) != 1 || patch.Updated[0].ID != oldID || patch.Updated[0].Kind != "tombstone" {
+		t.Fatalf("tombstone patch=%#v", patch)
+	}
+}
+
 func newTestApp(t *testing.T) *App {
 	t.Helper()
 	app := NewApp()
@@ -224,4 +283,13 @@ func desktopTestEndpoint(seed string) string {
 		return `\\.\pipe\aav-desktop-test-` + hex.EncodeToString(sum[:8])
 	}
 	return filepath.Join(os.TempDir(), "aav-desktop-test-"+hex.EncodeToString(sum[:8])+".sock")
+}
+
+func nodeIDForTest(snapshot graphSnapshotDTO, path string) string {
+	for _, node := range snapshot.Nodes {
+		if node.Path == path {
+			return node.ID
+		}
+	}
+	return ""
 }

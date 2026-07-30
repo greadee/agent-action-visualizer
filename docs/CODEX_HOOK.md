@@ -73,4 +73,5 @@ installing the hook into Codex; P6-S4 owns the real Codex end-to-end result.
 
 P6-S3 provides project/user install, dry-run, status, isolated test, and
 reversible uninstall behavior. See [the Codex installer guide](CODEX_INSTALLER.md).
-Codex trust review and a real disposable-session validation remain P6-S4.
+P6-S4 adds reproducible session evidence, restart/reconnect coverage, and
+fresh hook-path measurements. See [the end-to-end validation record](CODEX_E2E.md).

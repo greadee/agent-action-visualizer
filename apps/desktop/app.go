@@ -165,7 +165,7 @@ func (a *App) LoadProject(root string) (graphSnapshotDTO, error) {
 	if err != nil {
 		return graphSnapshotDTO{}, err
 	}
-	nodes := a.identity.Assign(enriched)
+	nodes := a.withTombstones(a.identity.Assign(enriched))
 	a.snapshot = graph.Layout(nodes, 1)
 	result := snapshotDTO(a.snapshot)
 	if a.ctx != nil {
@@ -186,6 +186,7 @@ func (a *App) PublishActivityEvent(event protocol.Event) (liveFocusDTO, error) {
 	if err != nil {
 		return liveFocusDTO{}, err
 	}
+	a.applyIdentityLifecycle(normalized)
 	if normalized.Path != "" && normalized.NodeID == "" {
 		normalized.NodeID = a.nodeIDForPath(normalized.Path)
 	}
@@ -310,7 +311,44 @@ func (a *App) nodeIDForPath(path string) string {
 			return node.ID
 		}
 	}
+	if a.identity != nil {
+		if node, ok := a.identity.Lookup(path); ok {
+			return node.ID
+		}
+	}
 	return ""
+}
+
+func (a *App) applyIdentityLifecycle(event protocol.Event) {
+	if a.identity == nil {
+		return
+	}
+	switch event.EventType {
+	case protocol.EventFileRenamed, protocol.EventFileMoved:
+		if event.PreviousPath != "" && event.Path != "" {
+			_, _ = a.identity.Rename(event.PreviousPath, event.Path)
+		}
+	case protocol.EventFileDeleted:
+		if event.Path != "" {
+			_, _ = a.identity.Delete(event.Path)
+		}
+	}
+}
+
+func (a *App) withTombstones(nodes []project.Node) []project.Node {
+	if a.identity == nil {
+		return nodes
+	}
+	seen := make(map[string]bool, len(nodes))
+	for _, node := range nodes {
+		seen[node.Path] = true
+	}
+	for _, node := range a.identity.Tombstones() {
+		if !seen[node.Path] {
+			nodes = append(nodes, node)
+		}
+	}
+	return nodes
 }
 
 func (a *App) liveFocusDTO(state session.State) liveFocusDTO {
@@ -366,7 +404,7 @@ func (a *App) RefreshProject() (graphPatchDTO, error) {
 	if err != nil {
 		return graphPatchDTO{}, err
 	}
-	next := graph.Layout(a.identity.Assign(enriched), a.snapshot.Revision+1)
+	next := graph.Layout(a.withTombstones(a.identity.Assign(enriched)), a.snapshot.Revision+1)
 	change := graph.Diff(a.snapshot, next)
 	a.snapshot = next
 	result := patchDTO(change)

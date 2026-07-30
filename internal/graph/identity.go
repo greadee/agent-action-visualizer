@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	pathpkg "path"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 
@@ -65,6 +66,30 @@ func (r *IdentityRegistry) Delete(path string) (project.Node, bool) {
 	node.Kind = "tombstone"
 	r.byPath[key] = node
 	return node, true
+}
+
+// Lookup returns the latest known node for a project-relative path. It lets
+// live event handling retain a stable ID before the next scanner refresh.
+func (r *IdentityRegistry) Lookup(path string) (project.Node, bool) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	node, ok := r.byPath[r.key(path)]
+	return node, ok
+}
+
+// Tombstones returns deleted nodes that remain inspectable until a later
+// lifecycle policy prunes them. Results are sorted for deterministic refreshes.
+func (r *IdentityRegistry) Tombstones() []project.Node {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	result := make([]project.Node, 0)
+	for _, node := range r.byPath {
+		if node.Kind == "tombstone" {
+			result = append(result, node)
+		}
+	}
+	sort.Slice(result, func(i, j int) bool { return result[i].Path < result[j].Path })
+	return result
 }
 func (r *IdentityRegistry) Aliases(id string) []string {
 	r.mu.Lock()

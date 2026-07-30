@@ -22,6 +22,12 @@ func TestIdentityDeterminismRenameAndTombstone(t *testing.T) {
 	if !ok || deleted.Kind != "tombstone" {
 		t.Fatalf("delete=%+v", deleted)
 	}
+	if lookedUp, ok := registry.Lookup("src/b.go"); !ok || lookedUp.ID != original.ID {
+		t.Fatalf("lookup=%+v ok=%t", lookedUp, ok)
+	}
+	if tombstones := registry.Tombstones(); len(tombstones) != 1 || tombstones[0].ID != original.ID {
+		t.Fatalf("tombstones=%+v", tombstones)
+	}
 }
 func TestCaseFoldAndSeparators(t *testing.T) {
 	registry := NewIdentityRegistry("p", true)
