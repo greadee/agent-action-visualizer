@@ -335,3 +335,18 @@
 - Commit SHA: `ebad63ecdb524cfd05b3175fcb1104a74d4b5f5d`
 - Known limitations: Codex project trust and hook review were not mutated or inferred; a real trusted Codex session remains P6-S4. The installer deliberately leaves unrelated inline `config.toml` hooks untouched, so Codex may warn when both representations exist in one layer. Executable-level installer validation was performed on Windows/amd64; macOS and Linux paths are covered by platform-neutral unit contracts but were not run on those hosts
 - Next slice: P6-S4 - Codex E2E / validate
+
+## P6-S4 - Codex E2E / validate
+
+- Phase: 6
+- Slice: P6-S4
+- Feature: Codex end-to-end validation
+- Action: Validate
+- Status: complete
+- Files changed: reproducible documented-hook Git-fixture session test; hook-process, local IPC, normalized event, focus, structured-work, disconnect/reconnect, SQLite reopen, and deterministic replay validation; stable move identity and inspectable delete-tombstone continuity across desktop refresh; current compatibility and E2E evidence documentation
+- Tests run: complete root and desktop Go tests/vet; explicit reproducible fixture and move/tombstone commands; hook/IPC/process benchmark suites; `npm ci`; Prettier, ESLint, TypeScript, Vitest (34 tests), Vite production build, and Wails Windows production build
+- Benchmark result: Windows/amd64 on AMD Ryzen 5 9600X with Go 1.26.3: five-run medians were 11.866 microseconds for bounded decode/translation/no-op send, 51.933 microseconds for a named-pipe round trip, and 7.553 milliseconds for the process-level hook invocation across 20 launches per run
+- Commit SHA: `4f233d23c81b75245395164f1503064051162e19`
+- Known limitations: the installed AppX Codex `26.721.4979.0` CLI returns `Access is denied` for both restricted and elevated `--version`/`--help` probes. This host therefore cannot run `codex exec`, review a project hook with `/hooks`, or produce a real authenticated session. P6-S4 validates the documented local hook contract without model execution; a real trusted-session check needs an executable Codex host. macOS and Linux remain unverified.
+- Phase summary: Phase 6 now has version-specific compatibility evidence, a silent bounded lifecycle adapter, reversible project/user installation, and a reproducible full local hook session that validates lifecycle, read/create/patch/move/delete, focus, closed time intervals, structured additions/deletions, disconnected collector recovery, persistence/replay readiness, and no model-visible hook output. A live CLI session is honestly documented as unverified on this Windows AppX environment.
+- Next slice: P7-S1 - Adapter SDK / define
