@@ -34,6 +34,12 @@ func (a Adapter) Observe(ctx context.Context, out adapter.Emitter) {
 The runnable shape is demonstrated by `adapter/go/example.Static` and tested
 with `adapter.MockCollector`.
 
+The generic process implementation is in `adapter/go/wrapper`. Its
+`StructuredStreamParser` contract supports explicit incremental parsers without
+changing child output, and its `FallbackObserver` contract is the integration
+point for the filesystem/Git fallback implemented in P7-S3. Both receive a
+failure-open emitter and execute outside the child process's control path.
+
 ## Event hygiene
 
 Emit only metadata required by `protocol.Event`. Do not submit source content,
@@ -74,3 +80,5 @@ than zero-valued deltas.
 - Keep ordinary failures silent; collect diagnostics only through safe local channels.
 - Test malformed input, unavailable collectors, timeout, saturation, and path escape rejection.
 - Add sanitized fixtures that contain no source content or secrets.
+
+See `docs/GENERIC_WRAPPER.md` for process, stream, signal, and CLI contracts.

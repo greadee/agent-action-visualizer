@@ -50,6 +50,7 @@ adapter -> local authenticated transport -> bounded ingress queue
 
 - `protocol/`: versioned JSON Schema plus Go and TypeScript contract types.
 - `adapter/go`: public adapter descriptor, capability, bounded emitter, path, and test contracts.
+- `adapter/go/wrapper`: transparent process lifecycle runner, structured-stream parser seam, and fallback observer seam.
 - `internal/ingest`: validation, bounded queueing, deduplication, and normalization.
 - `internal/session`: lifecycle, focus priority, access intervals, idle handling, and replay state.
 - `internal/project`: safe scanning and ignore handling.
@@ -57,7 +58,7 @@ adapter -> local authenticated transport -> bounded ingress queue
 - `internal/diff`: asynchronous structured-patch, snapshot, and Git numstat delta sources.
 - `internal/store`: migrations and repositories over pure-Go SQLite.
 - `internal/ipc`: local transport, authentication, payload limits, and frontend publication.
-- `internal/adapters`: Codex, generic process, filesystem/Git, and optional integrations.
+- `internal/adapters`: Codex, filesystem/Git, and optional integration implementations.
 - `apps/desktop`: Wails lifecycle and a React/TypeScript/Three.js presentation layer.
 
 ## Active-file resolution
