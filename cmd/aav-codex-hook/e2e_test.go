@@ -92,6 +92,7 @@ func TestReproducibleCodexFixtureSession(t *testing.T) {
 		"tool_input": map[string]any{"path": "moved.txt"},
 	}))
 	runFixtureHook(t, endpoint, fixtureInput("SessionEnd", root, map[string]any{"reason": "other"}))
+	waitForFixtureEvents(t, recorder, 12)
 
 	state := recorder.state(t, "fixture-session")
 	if state.StoppedAt == nil || len(state.Intervals) != 4 {
@@ -209,6 +210,18 @@ func (r *fixtureRecorder) state(t *testing.T, id string) session.State {
 		t.Fatal(err)
 	}
 	return state
+}
+
+func waitForFixtureEvents(t *testing.T, recorder *fixtureRecorder, expected int) {
+	t.Helper()
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		if recorder.eventCount() >= expected {
+			return
+		}
+		time.Sleep(time.Millisecond)
+	}
+	t.Fatalf("timed out waiting for %d events; received %d", expected, recorder.eventCount())
 }
 
 func runFixtureHook(t *testing.T, endpoint string, input map[string]any) {
