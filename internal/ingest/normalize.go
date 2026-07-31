@@ -4,8 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
-	"strings"
 
+	adapter "github.com/greadee/agent-action-visualizer/adapter/go"
 	protocol "github.com/greadee/agent-action-visualizer/protocol/go"
 )
 
@@ -35,20 +35,5 @@ func Normalize(event protocol.Event, selectedRoot string) (protocol.Event, error
 // NormalizeProjectPath converts an absolute or project-relative path to a
 // slash-separated project-relative path and rejects paths outside the root.
 func NormalizeProjectPath(root, value string) (string, error) {
-	candidate := value
-	if !filepath.IsAbs(candidate) {
-		candidate = filepath.Join(root, candidate)
-	}
-	abs, err := filepath.Abs(candidate)
-	if err != nil {
-		return "", err
-	}
-	rel, err := filepath.Rel(root, abs)
-	if err != nil {
-		return "", err
-	}
-	if rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.IsAbs(rel) {
-		return "", errors.New("path escapes selected project")
-	}
-	return filepath.ToSlash(filepath.Clean(rel)), nil
+	return adapter.NormalizeProjectPath(root, value)
 }

@@ -49,6 +49,7 @@ adapter -> local authenticated transport -> bounded ingress queue
 ## Core packages
 
 - `protocol/`: versioned JSON Schema plus Go and TypeScript contract types.
+- `adapter/go`: public adapter descriptor, capability, bounded emitter, path, and test contracts.
 - `internal/ingest`: validation, bounded queueing, deduplication, and normalization.
 - `internal/session`: lifecycle, focus priority, access intervals, idle handling, and replay state.
 - `internal/project`: safe scanning and ignore handling.
