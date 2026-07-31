@@ -350,3 +350,17 @@
 - Known limitations: the installed AppX Codex `26.721.4979.0` CLI returns `Access is denied` for both restricted and elevated `--version`/`--help` probes. This host therefore cannot run `codex exec`, review a project hook with `/hooks`, or produce a real authenticated session. P6-S4 validates the documented local hook contract without model execution; a real trusted-session check needs an executable Codex host. macOS and Linux remain unverified.
 - Phase summary: Phase 6 now has version-specific compatibility evidence, a silent bounded lifecycle adapter, reversible project/user installation, and a reproducible full local hook session that validates lifecycle, read/create/patch/move/delete, focus, closed time intervals, structured additions/deletions, disconnected collector recovery, persistence/replay readiness, and no model-visible hook output. A live CLI session is honestly documented as unverified on this Windows AppX environment.
 - Next slice: P7-S1 - Adapter SDK / define
+
+## P7-S1 - Adapter SDK / define
+
+- Phase: 7
+- Slice: P7-S1
+- Feature: Public adapter SDK
+- Action: Define
+- Status: complete
+- Files changed: public Go adapter descriptor, capability declarations, static contract validation, bounded non-blocking failure-open emitter, mock collector, safe project-root path normalization, runnable metadata-only example adapter, contract tests, and adapter-author guidance; ingress now shares the public path normalizer
+- Tests run: root and desktop Go tests/vet; SDK race attempt was unavailable because this Windows Go environment has CGO disabled; `npm ci`; Prettier, ESLint, TypeScript, Vitest (34 tests), and Vite production build
+- Benchmark result: not applicable; the SDK bounds batches at 128 events, sends at four in-flight collector calls by default, and uses a 75-millisecond local collector deadline
+- Commit SHA: `b6c16109ca74e73d7d0356359094f59365e98541`
+- Known limitations: the generic process wrapper, structured-stream runner, filesystem fallback, and optional adapters are deferred to later Phase 7 slices; no visible UI changed; the existing Vite bundle-size warning remains deferred to P9
+- Next slice: P7-S2 - Generic wrapper / implement
