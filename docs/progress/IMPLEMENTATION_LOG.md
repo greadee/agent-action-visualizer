@@ -365,3 +365,17 @@
 - CI follow-up SHA: `eda39b5`; waits for the bounded local IPC fixture delivery before asserting the Codex session lifecycle, validated by 20 consecutive fixture runs
 - Known limitations: the generic process wrapper, structured-stream runner, filesystem fallback, and optional adapters are deferred to later Phase 7 slices; no visible UI changed; the existing Vite bundle-size warning remains deferred to P9
 - Next slice: P7-S2 - Generic wrapper / implement
+
+## P7-S2 - Generic wrapper / implement
+
+- Phase: 7
+- Slice: P7-S2
+- Feature: Generic command wrapper
+- Action: Implement
+- Status: complete
+- Files changed: public transparent process runner; standalone `aav-wrapper` CLI; exact argument, environment, working-directory, stdin, stdout, stderr, exit-code, and Unix signal contracts; ordered metadata-only session/command lifecycle events; bounded local delivery; bounded structured-stream parser interface with drop signaling; asynchronous filesystem/Git fallback observer seam; operational documentation; and process-level contract tests
+- Tests run: complete root and desktop Go tests/vet; ten repeated wrapper and CLI contract runs; executable smoke with exit code 17; Windows process tests for success, exit code 23, quoting, environment, working directory, cancellation, disconnected collector, blocked parser/fallback, and 2 MiB stdout plus 2 MiB stderr; Linux/amd64 test cross-compilation including Unix signal forwarding/re-raising; `npm ci`; Prettier, ESLint, TypeScript, Vitest (34 tests), and Vite production build
+- Benchmark result: not applicable; wrapper observation uses a 64-batch delivery queue, 75-millisecond local send deadline, 64-chunk parser queue, 32 KiB stream chunks, and a 25-millisecond parser-drain cap
+- Commit SHA: `28a8587170ad09bba52204b49d9aa1e488d38cef`
+- Known limitations: the standalone CLI emits lifecycle evidence only; agent-specific structured parsers remain explicit embedding integrations, filesystem/Git observation is deferred to P7-S3, and macOS signal behavior is cross-platform code-covered but not run on this Windows host; the existing Vite bundle-size warning remains deferred to P9
+- Next slice: P7-S3 - Filesystem fallback / implement
