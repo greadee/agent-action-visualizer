@@ -379,3 +379,17 @@
 - Commit SHA: `28a8587170ad09bba52204b49d9aa1e488d38cef`
 - Known limitations: the standalone CLI emits lifecycle evidence only; agent-specific structured parsers remain explicit embedding integrations, filesystem/Git observation is deferred to P7-S3, and macOS signal behavior is cross-platform code-covered but not run on this Windows host; the existing Vite bundle-size warning remains deferred to P9
 - Next slice: P7-S3 - Filesystem fallback / implement
+
+## P7-S3 - Filesystem fallback / implement
+
+- Phase: 7
+- Slice: P7-S3
+- Feature: Filesystem fallback
+- Action: Implement
+- Status: complete
+- Files changed: shared scanner/live ignore matcher with runtime reload; recursive cross-platform filesystem observer; bounded raw and pending queues; debounce and per-path coalescing; Git status and numstat batching; unique-evidence rename/move correlation; explicit observed/correlated confidence; binary and unknown work handling; cross-source structured/native duplicate suppression; default generic-wrapper CLI integration with opt-out; operational documentation; and deterministic burst, overload, long-session, real-watcher, real-Git, and child-process integration tests
+- Tests run: complete root and desktop Go tests/vet; five repeated Git/watcher/dedup contract runs; ten repeated watcher and wrapper concurrency/integration runs; real Windows recursive filesystem notification; disposable real-Git status/numstat inspection; child-owned file write preservation; `npm ci`; Prettier, ESLint, TypeScript, Vitest (34 tests), Vite production build, and Wails Windows production build
+- Benchmark result: not applicable; the fallback uses a 1,024-event raw queue, 512 pending paths, 128-path batches, 75-millisecond debounce, 150-millisecond rename window, 250-millisecond Git deadline, and 100-millisecond cross-source evidence window
+- Commit SHA: `6ea71212bc2cfe1dbcad47d7c18531687b1ccbbc`
+- Known limitations: OS watcher delivery can lose evidence during kernel overflow or on unsupported/network filesystems; the shared ignore matcher preserves the established subset and does not implement negation rules; directory rename correlation requires Git evidence; session-window attribution cannot identify a specific child tool without native or structured evidence; race builds were unavailable because this Windows host has CGO disabled and no C compiler; macOS and Linux watcher behavior is implementation-covered but not run on those hosts; the existing Vite bundle-size warning remains deferred to P9
+- Next slice: P7-S4 - Claude adapter / implement where stable
