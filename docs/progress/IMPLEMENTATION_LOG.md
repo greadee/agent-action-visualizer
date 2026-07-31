@@ -362,5 +362,6 @@
 - Tests run: root and desktop Go tests/vet; SDK race attempt was unavailable because this Windows Go environment has CGO disabled; `npm ci`; Prettier, ESLint, TypeScript, Vitest (34 tests), and Vite production build
 - Benchmark result: not applicable; the SDK bounds batches at 128 events, sends at four in-flight collector calls by default, and uses a 75-millisecond local collector deadline
 - Commit SHA: `b6c16109ca74e73d7d0356359094f59365e98541`
+- CI follow-up SHA: `eda39b5`; waits for the bounded local IPC fixture delivery before asserting the Codex session lifecycle, validated by 20 consecutive fixture runs
 - Known limitations: the generic process wrapper, structured-stream runner, filesystem fallback, and optional adapters are deferred to later Phase 7 slices; no visible UI changed; the existing Vite bundle-size warning remains deferred to P9
 - Next slice: P7-S2 - Generic wrapper / implement
