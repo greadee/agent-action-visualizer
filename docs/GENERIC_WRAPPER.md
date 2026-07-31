@@ -31,6 +31,9 @@ flags. Wrapper flags are:
 - `--agent-type`: metadata label; defaults to `generic`.
 - `--endpoint`: local collector endpoint; defaults to
   `AAV_COLLECTOR_ENDPOINT` or the platform's per-user endpoint.
+- `--filesystem-fallback`: enables recursive metadata-only repository
+  observation; defaults to `true`. Set it to `false` when an embedding supplies
+  complete native or structured file evidence.
 
 ## Preservation contract
 
@@ -55,7 +58,7 @@ The wrapper emits exact `wrapper` source events in this order:
 
 1. `session_started`
 2. `command_started`
-3. zero or more explicitly configured structured-stream or fallback events
+3. zero or more structured-stream or filesystem fallback events
 4. `command_completed`
 5. `session_stopped`
 
@@ -78,18 +81,35 @@ output destination is written first, so parsing cannot suppress or change
 bytes. Parsers must accept arbitrary chunk boundaries and must emit complete,
 validated protocol events with honest source and confidence values.
 
-`adapter/go/wrapper.FallbackObserver` is the P7-S3 filesystem/Git integration
-point. It receives session, root, agent, and process metadata after the child
-starts, runs asynchronously, and is canceled when the child exits. P7-S2 does
-not implement filesystem observation or infer file activity.
+`adapter/go/wrapper.FallbackObserver` receives session, root, agent, and process
+metadata after the child starts, runs asynchronously, and is canceled when the
+child exits. The standalone CLI installs the P7-S3 implementation by default.
 
-The standalone CLI emits lifecycle evidence only. Agent-specific structured
-parsers are opt-in compile-time integrations rather than automatic parsing of
-ordinary terminal output.
+The fallback recursively watches non-ignored directories without reading or
+persisting source contents. It shares `.gitignore`, `.aavignore`, and default
+dependency/build exclusions with the project scanner. Bursts are debounced and
+coalesced per path through bounded queues. Each ready batch uses one Git status
+inspection and one Git numstat inspection for supported tracked files.
+
+Create, modify, and delete facts use `filesystem/observed`. Rename and move
+facts are emitted only when Git evidence or a unique metadata match correlates
+the old and new path; those events use `filesystem/correlated`. Ambiguous
+renames remain separate delete/create events. Binary and unknown Git evidence
+remain explicit rather than receiving invented line counts.
+
+Filesystem events wait briefly at a bounded evidence gate. A matching
+native-hook or structured-stream event suppresses the fallback duplicate;
+stronger evidence is never delayed. Unmatched fallback evidence is emitted
+after 100 milliseconds or flushed during bounded shutdown.
+
+Agent-specific structured parsers remain opt-in compile-time integrations. The
+wrapper never parses ordinary terminal output automatically.
 
 ## Validation
 
 Contract tests cover exact arguments and environment values, stdin, independent
 stdout/stderr, success, exit code 23, 2 MiB output on each stream, cancellation,
 Unix signal forwarding and re-raising, parser saturation, blocked observers,
-disconnected collectors, metadata redaction, and executable-level behavior.
+disconnected collectors, metadata redaction, cross-source duplicate
+suppression, burst overload, long sessions, recursive ignore behavior, rename
+correlation, real filesystem notification, and executable-level behavior.

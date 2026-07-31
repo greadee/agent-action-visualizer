@@ -17,6 +17,7 @@ import (
 
 	adapter "github.com/greadee/agent-action-visualizer/adapter/go"
 	"github.com/greadee/agent-action-visualizer/adapter/go/wrapper"
+	filesystemadapter "github.com/greadee/agent-action-visualizer/internal/adapters/filesystem"
 	protocol "github.com/greadee/agent-action-visualizer/protocol/go"
 )
 
@@ -25,7 +26,7 @@ func TestDescriptorSatisfiesAdapterContract(t *testing.T) {
 	if err := descriptor.Validate(); err != nil {
 		t.Fatal(err)
 	}
-	if descriptor.ID != wrapper.AdapterID || len(descriptor.Capabilities) != 2 {
+	if descriptor.ID != wrapper.AdapterID || len(descriptor.Capabilities) != 5 {
 		t.Fatalf("descriptor = %#v", descriptor)
 	}
 }
@@ -199,6 +200,39 @@ func TestBlockedParserAndFallbackDoNotDelayCommand(t *testing.T) {
 	}
 }
 
+func TestRunObservesChildFileWriteWithoutChangingFile(t *testing.T) {
+	collector := &adapter.MockCollector{}
+	config := helperConfig(t, "write")
+	path := filepath.Join(config.Dir, "child.txt")
+	config.Env = setEnvironment(config.Env, "AAV_WRAPPER_TEST_PATH", path)
+	config.Collector = collector
+	config.SessionID = "session-write"
+	config.Fallback = filesystemadapter.NewObserver(filesystemadapter.Config{
+		Debounce:     10 * time.Millisecond,
+		RenameWindow: 20 * time.Millisecond,
+	})
+
+	result := wrapper.Run(context.Background(), config)
+	if result.ExitCode != 0 || result.StartError != nil {
+		t.Fatalf("result = %#v", result)
+	}
+	content, err := os.ReadFile(path)
+	if err != nil || string(content) != "child-owned content\n" {
+		t.Fatalf("content=%q err=%v", content, err)
+	}
+	events := collector.Events()
+	found := false
+	for _, event := range events {
+		if event.Path == path &&
+			(event.EventType == protocol.EventFileCreated || event.EventType == protocol.EventFileModified) {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("filesystem event missing from %#v", events)
+	}
+}
+
 func TestContextCancellationStopsChild(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
@@ -287,6 +321,9 @@ func TestWrapperChildHelper(t *testing.T) {
 		time.Sleep(10 * time.Second)
 	case "success":
 		_, _ = fmt.Fprintln(os.Stdout, "success")
+	case "write":
+		_ = os.WriteFile(os.Getenv("AAV_WRAPPER_TEST_PATH"), []byte("child-owned content\n"), 0o600)
+		time.Sleep(200 * time.Millisecond)
 	default:
 		os.Exit(64)
 	}

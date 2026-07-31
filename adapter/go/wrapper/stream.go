@@ -6,6 +6,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	adapter "github.com/greadee/agent-action-visualizer/adapter/go"
 )
 
 const maxStreamChunkBytes = 32 << 10
@@ -14,7 +16,7 @@ type streamTap struct {
 	ctx       context.Context
 	cancel    context.CancelFunc
 	parser    StructuredStreamParser
-	emitter   *delivery
+	emitter   adapter.Emitter
 	queue     chan StreamChunk
 	startOnce sync.Once
 	startCh   chan struct{}
@@ -23,7 +25,7 @@ type streamTap struct {
 	finished  atomic.Bool
 }
 
-func newStreamTap(parent context.Context, parser StructuredStreamParser, emitter *delivery, queueSize int) *streamTap {
+func newStreamTap(parent context.Context, parser StructuredStreamParser, emitter adapter.Emitter, queueSize int) *streamTap {
 	ctx, cancel := context.WithCancel(parent)
 	tap := &streamTap{
 		ctx:     ctx,

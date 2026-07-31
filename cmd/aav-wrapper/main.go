@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/greadee/agent-action-visualizer/adapter/go/wrapper"
+	filesystemadapter "github.com/greadee/agent-action-visualizer/internal/adapters/filesystem"
 	"github.com/greadee/agent-action-visualizer/internal/ipc"
 )
 
@@ -27,6 +28,7 @@ func run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 	sessionID := flags.String("session-id", "", "stable session id (generated when omitted)")
 	agentType := flags.String("agent-type", "generic", "agent type label")
 	endpoint := flags.String("endpoint", ipc.DefaultEndpoint(), "local AAV collector endpoint")
+	filesystemFallback := flags.Bool("filesystem-fallback", true, "observe repository changes when stronger evidence is unavailable")
 	if err := flags.Parse(args); err != nil {
 		return wrapper.Result{}, 2
 	}
@@ -35,7 +37,7 @@ func run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 		fmt.Fprintln(stderr, "usage: aav-wrapper [flags] -- command [arguments...]")
 		return wrapper.Result{}, 2
 	}
-	result := wrapper.Run(ctx, wrapper.Config{
+	config := wrapper.Config{
 		Command:     command[0],
 		Args:        command[1:],
 		ProjectRoot: *projectRoot,
@@ -45,7 +47,11 @@ func run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 		Stdout:      stdout,
 		Stderr:      stderr,
 		Collector:   ipc.NewClient(*endpoint),
-	})
+	}
+	if *filesystemFallback {
+		config.Fallback = filesystemadapter.NewObserver(filesystemadapter.Config{})
+	}
+	result := wrapper.Run(ctx, config)
 	if result.StartError != nil {
 		fmt.Fprintf(stderr, "aav-wrapper: %s\n", sanitize(result.StartError.Error()))
 	}

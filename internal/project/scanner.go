@@ -1,7 +1,6 @@
 package project
 
 import (
-	"bufio"
 	"context"
 	"io/fs"
 	"os"
@@ -54,7 +53,7 @@ type Snapshot struct {
 type Scanner struct{ defaults []string }
 
 func NewScanner() *Scanner {
-	return &Scanner{defaults: []string{".git", ".aav", "node_modules", "vendor", "dist", "build", "coverage", ".next", "target", "__pycache__", ".cache"}}
+	return &Scanner{defaults: append([]string(nil), defaultIgnorePatterns...)}
 }
 
 func (s *Scanner) Scan(ctx context.Context, root string) (Snapshot, error) {
@@ -62,9 +61,7 @@ func (s *Scanner) Scan(ctx context.Context, root string) (Snapshot, error) {
 	if err != nil {
 		return Snapshot{}, err
 	}
-	patterns := append([]string(nil), s.defaults...)
-	patterns = append(patterns, readPatterns(filepath.Join(abs, ".gitignore"))...)
-	patterns = append(patterns, readPatterns(filepath.Join(abs, ".aavignore"))...)
+	matcher := newIgnoreMatcher(abs, s.defaults)
 	nodes := []Node{{Path: ".", Name: filepath.Base(abs), Kind: KindRoot}}
 	err = filepath.WalkDir(abs, func(path string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
@@ -83,7 +80,7 @@ func (s *Scanner) Scan(ctx context.Context, root string) (Snapshot, error) {
 			return err
 		}
 		rel = filepath.ToSlash(rel)
-		if ignored(rel, entry.IsDir(), patterns) {
+		if matcher.Ignored(rel, entry.IsDir()) {
 			if entry.IsDir() {
 				return filepath.SkipDir
 			}
@@ -109,45 +106,6 @@ func (s *Scanner) Scan(ctx context.Context, root string) (Snapshot, error) {
 	}
 	sort.Slice(nodes[1:], func(i, j int) bool { return nodes[i+1].Path < nodes[j+1].Path })
 	return Snapshot{Root: abs, Nodes: nodes}, nil
-}
-func readPatterns(path string) []string {
-	file, err := os.Open(path)
-	if err != nil {
-		return nil
-	}
-	defer file.Close()
-	var out []string
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line != "" && !strings.HasPrefix(line, "#") && !strings.HasPrefix(line, "!") {
-			out = append(out, strings.TrimSuffix(filepath.ToSlash(line), "/"))
-		}
-	}
-	return out
-}
-func ignored(path string, isDir bool, patterns []string) bool {
-	parts := strings.Split(path, "/")
-	for _, pattern := range patterns {
-		pattern = strings.TrimPrefix(pattern, "/")
-		if pattern == "" {
-			continue
-		}
-		if !strings.Contains(pattern, "/") {
-			for _, part := range parts {
-				if match(pattern, part) {
-					return true
-				}
-			}
-		} else if match(pattern, path) || strings.HasPrefix(path, pattern+"/") {
-			return true
-		}
-	}
-	return false
-}
-func match(pattern, value string) bool {
-	ok, _ := filepath.Match(filepath.FromSlash(pattern), filepath.FromSlash(value))
-	return ok
 }
 func classify(path string, isDir bool) NodeKind {
 	if isDir {

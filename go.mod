@@ -4,6 +4,7 @@ go 1.26.3
 
 require (
 	github.com/Microsoft/go-winio v0.6.2
+	github.com/fsnotify/fsnotify v1.10.1
 	modernc.org/sqlite v1.54.0
 )
 

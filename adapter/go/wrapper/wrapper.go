@@ -27,6 +27,7 @@ const (
 	DefaultSendDeadline  = 75 * time.Millisecond
 	DefaultParserQueue   = 64
 	DefaultParserDrain   = 25 * time.Millisecond
+	DefaultFallbackDrain = 25 * time.Millisecond
 )
 
 type Stream string
@@ -84,11 +85,14 @@ type Config struct {
 	Parser    StructuredStreamParser
 	Fallback  FallbackObserver
 
-	DeliveryQueue int
-	SendDeadline  time.Duration
-	ParserQueue   int
-	ParserDrain   time.Duration
-	Now           func() time.Time
+	DeliveryQueue  int
+	SendDeadline   time.Duration
+	ParserQueue    int
+	ParserDrain    time.Duration
+	FallbackDrain  time.Duration
+	EvidenceQueue  int
+	EvidenceWindow time.Duration
+	Now            func() time.Time
 }
 
 type Result struct {
@@ -107,6 +111,9 @@ func Descriptor() adapter.Descriptor {
 		Capabilities: []adapter.Capability{
 			adapter.CapabilitySessionLifecycle,
 			adapter.CapabilityCommandLifecycle,
+			adapter.CapabilityFileWrite,
+			adapter.CapabilityFileMove,
+			adapter.CapabilityFileDelete,
 		},
 	}
 }
@@ -122,7 +129,9 @@ func Run(parent context.Context, config Config) Result {
 
 	dispatch := newDispatcher(prepared.Collector, prepared.DeliveryQueue, prepared.SendDeadline)
 	defer dispatch.stop()
-	parserTap := newStreamTap(parent, prepared.Parser, dispatch, prepared.ParserQueue)
+	evidence := newEvidenceGate(dispatch, prepared.EvidenceQueue, prepared.EvidenceWindow)
+	defer evidence.stop(prepared.ParserDrain)
+	parserTap := newStreamTap(parent, prepared.Parser, evidence, prepared.ParserQueue)
 
 	command := exec.Command(prepared.Command, prepared.Args...)
 	command.Env = prepared.Env
@@ -148,8 +157,14 @@ func Run(parent context.Context, config Config) Result {
 	parserTap.start()
 
 	observerCtx, cancelObservers := context.WithCancel(parent)
+	observerDone := make(chan struct{})
 	if prepared.Fallback != nil {
-		go observeFallback(observerCtx, prepared.Fallback, observation, dispatch)
+		go func() {
+			defer close(observerDone)
+			observeFallback(observerCtx, prepared.Fallback, observation, evidence)
+		}()
+	} else {
+		close(observerDone)
 	}
 
 	processDone := make(chan struct{})
@@ -159,7 +174,9 @@ func Run(parent context.Context, config Config) Result {
 	close(processDone)
 	stopSignals()
 	cancelObservers()
+	waitForObserver(observerDone, prepared.FallbackDrain)
 	parserTap.finish(prepared.ParserDrain)
+	evidence.stop(prepared.ParserDrain)
 
 	result := processResult(waitErr, command.ProcessState)
 	stoppedAt := prepared.Now().UTC()
@@ -219,6 +236,15 @@ func prepareConfig(config Config) (Config, error) {
 	if config.ParserDrain <= 0 {
 		config.ParserDrain = DefaultParserDrain
 	}
+	if config.FallbackDrain <= 0 {
+		config.FallbackDrain = DefaultFallbackDrain
+	}
+	if config.EvidenceQueue <= 0 {
+		config.EvidenceQueue = DefaultEvidenceQueue
+	}
+	if config.EvidenceWindow <= 0 {
+		config.EvidenceWindow = DefaultEvidenceWindow
+	}
 	config.Args = append([]string(nil), config.Args...)
 	if config.Env != nil {
 		config.Env = append([]string(nil), config.Env...)
@@ -237,6 +263,15 @@ func newSessionID(now time.Time) string {
 func observeFallback(ctx context.Context, observer FallbackObserver, observation Observation, emitter adapter.Emitter) {
 	defer func() { _ = recover() }()
 	observer.Observe(ctx, observation, emitter)
+}
+
+func waitForObserver(done <-chan struct{}, deadline time.Duration) {
+	timer := time.NewTimer(deadline)
+	defer timer.Stop()
+	select {
+	case <-done:
+	case <-timer.C:
+	}
 }
 
 func cancelProcess(ctx context.Context, process *os.Process, done <-chan struct{}) {
