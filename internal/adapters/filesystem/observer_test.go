@@ -207,12 +207,9 @@ func TestObserverRealFilesystemSource(t *testing.T) {
 	observer := NewObserver(Config{
 		Debounce: 15 * time.Millisecond,
 		Git:      &recordingGitInspector{},
+		onReady:  func() { close(ready) },
 		newSource: func(size int) (eventSource, error) {
-			source, err := newFSNotifySource(size)
-			if err != nil {
-				return nil, err
-			}
-			return &readySource{eventSource: source, root: filepath.Clean(root), ready: ready}, nil
+			return newFSNotifySource(size)
 		},
 	})
 	emitter := &captureEmitter{}
@@ -286,21 +283,6 @@ func (s *fakeSource) waitReady(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("observer did not start")
 	}
-}
-
-type readySource struct {
-	eventSource
-	root  string
-	ready chan struct{}
-	once  sync.Once
-}
-
-func (s *readySource) Add(path string) error {
-	err := s.eventSource.Add(path)
-	if err == nil && filepath.Clean(path) == s.root {
-		s.once.Do(func() { close(s.ready) })
-	}
-	return err
 }
 
 type recordingGitInspector struct {

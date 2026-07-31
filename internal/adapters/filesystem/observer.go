@@ -37,6 +37,7 @@ type Config struct {
 	Now          func() time.Time
 
 	newSource func(int) (eventSource, error)
+	onReady   func()
 }
 
 type Observer struct {
@@ -115,7 +116,12 @@ func (o *Observer) Observe(ctx context.Context, observation wrapper.Observation,
 	}
 	raw := make(chan queuedChange, o.config.QueueSize)
 	var dropped atomic.Uint64
-	go drainSource(ctx, source, raw, &dropped, o.config.Now)
+	drainReady := make(chan struct{})
+	go drainSource(ctx, source, raw, &dropped, o.config.Now, drainReady)
+	<-drainReady
+	if o.config.onReady != nil {
+		o.config.onReady()
+	}
 
 	pending := make(map[string]*pendingChange)
 	tickEvery := max(10*time.Millisecond, o.config.Debounce/2)
@@ -156,8 +162,9 @@ func (o *Observer) Observe(ctx context.Context, observation wrapper.Observation,
 	}
 }
 
-func drainSource(ctx context.Context, source eventSource, output chan<- queuedChange, dropped *atomic.Uint64, now func() time.Time) {
+func drainSource(ctx context.Context, source eventSource, output chan<- queuedChange, dropped *atomic.Uint64, now func() time.Time, ready chan<- struct{}) {
 	defer close(output)
+	close(ready)
 	for {
 		select {
 		case <-ctx.Done():
