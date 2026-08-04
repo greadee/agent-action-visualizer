@@ -85,6 +85,30 @@ export interface TrailAccess {
   work_confidence?: string
 }
 
+export interface PersistedSessionSummary {
+  id: string
+  started_at: string
+  stopped_at?: string
+  status: string
+}
+
+export interface ReplayTimelineEntry {
+  index: number
+  timestamp: string
+  event_type: string
+  path?: string
+  is_access: boolean
+}
+
+export interface ReplaySession {
+  session: PersistedSessionSummary
+  cursor: number
+  event_count: number
+  cursor_at?: string
+  focus: LiveFocusState
+  timeline: ReplayTimelineEntry[]
+}
+
 export interface ActivityEvent {
   schema_version: '1.0'
   event_id: string

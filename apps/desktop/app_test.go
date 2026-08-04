@@ -160,6 +160,45 @@ func TestStructuredWorkDeltaUpdatesAsynchronously(t *testing.T) {
 	}
 }
 
+func TestPersistedSessionReplayIsCursorBounded(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "main.go"), []byte("package main"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	app := newTestApp(t)
+	if _, err := app.LoadProject(root); err != nil {
+		t.Fatal(err)
+	}
+	app.startJournalAt(filepath.Join(t.TempDir(), "sessions.db"))
+	base := time.Unix(7_000, 0).UTC()
+	for _, event := range []protocol.Event{
+		activityEvent("replay-start", protocol.EventSessionStarted, "", base),
+		activityEvent("replay-read", protocol.EventFileRead, "main.go", base.Add(time.Second)),
+	} {
+		if _, err := app.PublishActivityEvent(event); err != nil {
+			t.Fatal(err)
+		}
+	}
+	deadline := time.Now().Add(time.Second)
+	for {
+		sessions, err := app.ListPersistedSessions()
+		if err == nil && len(sessions) == 1 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("persisted sessions did not arrive: sessions=%#v err=%v", sessions, err)
+		}
+		time.Sleep(time.Millisecond)
+	}
+	replay, err := app.ReplayPersistedSession("review-session", 99)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if replay.Cursor != 1 || replay.EventCount != 2 || len(replay.Focus.Trail) != 1 || replay.Focus.Trail[0].EndedAt == nil || replay.Focus.Trail[0].DurationMS != 0 {
+		t.Fatalf("unexpected replay=%#v", replay)
+	}
+}
+
 func TestLocalCollectorFeedsSessionPipeline(t *testing.T) {
 	root := t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, "main.go"), []byte("package main"), 0o600); err != nil {

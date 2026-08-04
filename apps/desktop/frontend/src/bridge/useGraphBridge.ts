@@ -1,9 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type {
   ActivityEvent,
   GraphPatch,
   GraphSnapshot,
   LiveFocusState,
+  PersistedSessionSummary,
+  ReplaySession,
 } from '../graph/types'
 import { applyGraphPatch } from '../graph/patch'
 
@@ -23,6 +25,11 @@ declare global {
           PublishActivityEvent: (
             event: ActivityEvent,
           ) => Promise<LiveFocusState>
+          ListPersistedSessions: () => Promise<PersistedSessionSummary[]>
+          ReplayPersistedSession: (
+            sessionID: string,
+            cursor: number,
+          ) => Promise<ReplaySession>
         }
       }
     }
@@ -32,6 +39,9 @@ declare global {
 export function useGraphBridge(fallback: GraphSnapshot) {
   const [graph, setGraph] = useState(fallback)
   const [liveFocus, setLiveFocus] = useState<LiveFocusState>()
+  const fallbackHistory = useRef<
+    Map<string, { event: ActivityEvent; focus: LiveFocusState }[]>
+  >(new Map())
   useEffect(() => {
     const events = window.runtime?.EventsOnMultiple
     if (!events) return
@@ -74,10 +84,14 @@ export function useGraphBridge(fallback: GraphSnapshot) {
     }
     setLiveFocus((current) => {
       if (event.event_type === 'session_started') {
-        return { session_id: event.session_id, trail: [] }
+        const next = { session_id: event.session_id, trail: [] }
+        recordFallbackEvent(fallbackHistory.current, event, next)
+        return next
       }
       if (!event.path) {
-        return current ?? { session_id: event.session_id, trail: [] }
+        const next = current ?? { session_id: event.session_id, trail: [] }
+        recordFallbackEvent(fallbackHistory.current, event, next)
+        return next
       }
       const active = graph.nodes.find((node) => node.path === event.path)
       const secondaryPaths = event.metadata?.secondary_paths ?? []
@@ -153,7 +167,7 @@ export function useGraphBridge(fallback: GraphSnapshot) {
           ? event.source_confidence
           : 'inferred',
       }
-      return {
+      const next = {
         session_id: event.session_id,
         active_node_id: active?.id,
         active_path: event.path,
@@ -173,7 +187,82 @@ export function useGraphBridge(fallback: GraphSnapshot) {
         timestamp: event.timestamp,
         trail: [...closedTrail, nextAccess],
       }
+      recordFallbackEvent(fallbackHistory.current, event, next)
+      return next
     })
   }
-  return { graph, liveFocus, loadProject, publishActivityEvent }
+  async function listPersistedSessions() {
+    const list = window.go?.main?.App?.ListPersistedSessions
+    if (list) return list()
+    return Array.from(fallbackHistory.current.entries()).map(([id, items]) => ({
+      id,
+      started_at: items[0]?.event.timestamp ?? '',
+      status: 'preview',
+    }))
+  }
+
+  async function replayPersistedSession(sessionID: string, cursor: number) {
+    const replay = window.go?.main?.App?.ReplayPersistedSession
+    if (replay) return replay(sessionID, cursor)
+    const items = fallbackHistory.current.get(sessionID) ?? []
+    if (items.length === 0) throw new Error('No replay fixture is available')
+    const index = Math.min(Math.max(0, cursor), items.length - 1)
+    const cursorAt = items[index]?.event.timestamp
+    return {
+      session: {
+        id: sessionID,
+        started_at: items[0]?.event.timestamp ?? '',
+        status: 'preview',
+      },
+      cursor: index,
+      event_count: items.length,
+      cursor_at: cursorAt,
+      focus: freezePreviewFocus(items[index]?.focus, cursorAt),
+      timeline: items.map((item, eventIndex) => ({
+        index: eventIndex,
+        timestamp: item.event.timestamp,
+        event_type: item.event.event_type,
+        path: item.event.path,
+        is_access: Boolean(item.event.path),
+      })),
+    }
+  }
+
+  return {
+    graph,
+    liveFocus,
+    loadProject,
+    publishActivityEvent,
+    listPersistedSessions,
+    replayPersistedSession,
+  }
+}
+
+function recordFallbackEvent(
+  history: Map<string, { event: ActivityEvent; focus: LiveFocusState }[]>,
+  event: ActivityEvent,
+  focus: LiveFocusState,
+) {
+  const events = history.get(event.session_id) ?? []
+  if (events.some((item) => item.event.event_id === event.event_id)) return
+  history.set(event.session_id, [...events, { event, focus }])
+}
+
+function freezePreviewFocus(focus: LiveFocusState | undefined, at?: string) {
+  if (!focus || !at) return focus ?? { session_id: '', trail: [] }
+  return {
+    ...focus,
+    trail: focus.trail.map((access) =>
+      access.ended_at
+        ? access
+        : {
+            ...access,
+            ended_at: at,
+            duration_ms: Math.max(
+              0,
+              Date.parse(at) - Date.parse(access.started_at),
+            ),
+          },
+    ),
+  }
 }

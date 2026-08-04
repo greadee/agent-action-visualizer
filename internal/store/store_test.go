@@ -64,3 +64,29 @@ func TestSessionRecovery(t *testing.T) {
 		t.Fatalf("state=%+v err=%v", recovered, err)
 	}
 }
+
+func TestSessionsFiltersByProjectAndReturnsMetadata(t *testing.T) {
+	store, err := Open(filepath.Join(t.TempDir(), "aav.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	ctx := context.Background()
+	started := time.Unix(1_000, 0).UTC()
+	if err := store.EnsureProject(ctx, "project-a", "project-a"); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.EnsureProject(ctx, "project-b", "project-b"); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.SaveSession(ctx, session.State{SessionID: "a", StartedAt: started}, "project-a"); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.SaveSession(ctx, session.State{SessionID: "b", StartedAt: started.Add(time.Second)}, "project-b"); err != nil {
+		t.Fatal(err)
+	}
+	sessions, err := store.Sessions(ctx, "project-a")
+	if err != nil || len(sessions) != 1 || sessions[0].ID != "a" || !sessions[0].StartedAt.Equal(started) {
+		t.Fatalf("sessions=%#v err=%v", sessions, err)
+	}
+}

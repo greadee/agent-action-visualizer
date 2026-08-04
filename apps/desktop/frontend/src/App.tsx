@@ -1,6 +1,6 @@
 import { SegmentedControl } from '@prool-ui/react'
 import { Canvas } from '@react-three/fiber'
-import { useEffect, useRef, useState } from 'react'
+import { startTransition, useEffect, useRef, useState } from 'react'
 import './App.css'
 import type { ActivityMode } from './activity/extrusions'
 import {
@@ -11,11 +11,12 @@ import {
 } from './activity/displaySettings'
 import { useGraphBridge } from './bridge/useGraphBridge'
 import { demoGraph } from './graph/demoGraph'
-import type { LiveFocusState, TrailAccess } from './graph/types'
+import type { LiveFocusState, ReplaySession, TrailAccess } from './graph/types'
 import { NodeInspector } from './inspector/NodeInspector'
 import { GraphLegend } from './scene/GraphLegend'
 import { GraphScene } from './scene/GraphScene'
 import { selectTrailAccesses } from './scene/trail'
+import { adjacentAccessCursor, formatReplayTime } from './replay/timeline'
 
 const reviewEpoch = Date.parse('2026-07-21T18:00:00Z')
 
@@ -44,11 +45,25 @@ function App() {
   const [livePaused, setLivePaused] = useState(false)
   const [manualHold, setManualHold] = useState(false)
   const [followDelaySeconds, setFollowDelaySeconds] = useState(5)
+  const [persistedSessions, setPersistedSessions] = useState<
+    ReplaySession['session'][]
+  >([])
+  const [replaySession, setReplaySession] = useState<ReplaySession>()
+  const [isPlaying, setIsPlaying] = useState(false)
+  const [playbackSpeed, setPlaybackSpeed] = useState(1)
+  const [replayError, setReplayError] = useState('')
   const reviewStep = useRef(0)
   const reviewStarted = useRef(false)
   const latestFocus = useRef<LiveFocusState | undefined>(undefined)
-  const { graph, liveFocus, loadProject, publishActivityEvent } =
-    useGraphBridge(demoGraph)
+  const {
+    graph,
+    liveFocus,
+    loadProject,
+    publishActivityEvent,
+    listPersistedSessions,
+    replayPersistedSession,
+  } = useGraphBridge(demoGraph)
+  const isReplaying = Boolean(replaySession)
   const selected = graph.nodes.find((node) => node.id === selectedId)
   const matches = query
     ? graph.nodes
@@ -82,16 +97,16 @@ function App() {
   }, [displayedFocus, selectedAccess])
 
   useEffect(() => {
-    if (livePaused || !liveFocus) return
+    if (livePaused || isReplaying || !liveFocus) return
     setDisplayedFocus(liveFocus)
     if (autoFollow && !manualHold && liveFocus.active_node_id) {
       setCameraFocusId(liveFocus.active_node_id)
       setSelectedId(liveFocus.active_node_id)
     }
-  }, [autoFollow, liveFocus, livePaused, manualHold])
+  }, [autoFollow, isReplaying, liveFocus, livePaused, manualHold])
 
   useEffect(() => {
-    if (!manualHold || !autoFollow || livePaused) return
+    if (!manualHold || !autoFollow || livePaused || isReplaying) return
     const timer = window.setTimeout(() => {
       setManualHold(false)
       if (latestFocus.current?.active_node_id) {
@@ -100,7 +115,7 @@ function App() {
       }
     }, followDelaySeconds * 1000)
     return () => window.clearTimeout(timer)
-  }, [autoFollow, followDelaySeconds, livePaused, manualHold])
+  }, [autoFollow, followDelaySeconds, isReplaying, livePaused, manualHold])
 
   function inspectNode(id: string) {
     setSelectedId(id)
@@ -110,6 +125,9 @@ function App() {
   }
 
   function returnToLive() {
+    setReplaySession(undefined)
+    setIsPlaying(false)
+    setReplayError('')
     setLivePaused(false)
     setManualHold(false)
     setDisplayedFocus(liveFocus)
@@ -118,6 +136,50 @@ function App() {
       setCameraFocusId(liveFocus.active_node_id)
     }
   }
+
+  async function refreshPersistedSessions() {
+    try {
+      setPersistedSessions(await listPersistedSessions())
+    } catch (error) {
+      setReplayError(error instanceof Error ? error.message : String(error))
+    }
+  }
+
+  async function openReplay(sessionID: string, cursor: number) {
+    try {
+      const next = await replayPersistedSession(sessionID, cursor)
+      startTransition(() => {
+        setReplaySession(next)
+        setDisplayedFocus(next.focus)
+        setLivePaused(true)
+        setManualHold(false)
+        if (next.focus.active_node_id) {
+          setSelectedId(next.focus.active_node_id)
+          setCameraFocusId(next.focus.active_node_id)
+        }
+      })
+      setReplayError('')
+    } catch (error) {
+      setReplayError(error instanceof Error ? error.message : String(error))
+      setIsPlaying(false)
+    }
+  }
+
+  useEffect(() => {
+    if (!isPlaying || !replaySession) return
+    const timer = window.setInterval(
+      () => {
+        const nextCursor = replaySession.cursor + 1
+        if (nextCursor >= replaySession.event_count) {
+          setIsPlaying(false)
+          return
+        }
+        void openReplay(replaySession.session.id, nextCursor)
+      },
+      Math.max(120, 750 / playbackSpeed),
+    )
+    return () => window.clearInterval(timer)
+  }, [isPlaying, playbackSpeed, replaySession])
 
   async function ensureReviewSession() {
     if (reviewStarted.current) return
@@ -290,11 +352,13 @@ function App() {
             type="button"
             onClick={() => {
               setProjectError('')
-              void loadProject(projectPath).catch((error: unknown) =>
-                setProjectError(
-                  error instanceof Error ? error.message : String(error),
-                ),
-              )
+              void loadProject(projectPath)
+                .then(() => refreshPersistedSessions())
+                .catch((error: unknown) =>
+                  setProjectError(
+                    error instanceof Error ? error.message : String(error),
+                  ),
+                )
             }}
           >
             Load project
@@ -331,9 +395,15 @@ function App() {
           <p className="panel__label">LIVE FOCUS</p>
           <div className="focus-readout" aria-live="polite">
             <span
-              className={`live-state live-state--${livePaused ? 'paused' : manualHold ? 'manual' : 'live'}`}
+              className={`live-state live-state--${isReplaying ? 'replay' : livePaused ? 'paused' : manualHold ? 'manual' : 'live'}`}
             >
-              {livePaused ? 'PAUSED' : manualHold ? 'INSPECTING' : 'LIVE'}
+              {isReplaying
+                ? 'REPLAY'
+                : livePaused
+                  ? 'PAUSED'
+                  : manualHold
+                    ? 'INSPECTING'
+                    : 'LIVE'}
             </span>
             <strong>
               {displayedFocus?.active_path ?? 'Waiting for focus event'}
@@ -377,10 +447,10 @@ function App() {
             <button
               type="button"
               onClick={() =>
-                livePaused ? returnToLive() : setLivePaused(true)
+                livePaused || isReplaying ? returnToLive() : setLivePaused(true)
               }
             >
-              {livePaused ? 'Return live' : 'Pause updates'}
+              {livePaused || isReplaying ? 'Return live' : 'Pause updates'}
             </button>
             {import.meta.env.DEV && (
               <>
@@ -404,6 +474,127 @@ function App() {
                 </button>
               </>
             )}
+          </div>
+          <div className="rule" />
+          <p className="panel__label">SESSION REPLAY</p>
+          <div className="replay-panel" aria-live="polite">
+            <select
+              aria-label="Persisted session"
+              value={replaySession?.session.id ?? ''}
+              onFocus={() => void refreshPersistedSessions()}
+              onChange={(event) => {
+                const sessionID = event.target.value
+                setIsPlaying(false)
+                if (!sessionID) returnToLive()
+                else void openReplay(sessionID, Number.MAX_SAFE_INTEGER)
+              }}
+            >
+              <option value="">Live session</option>
+              {persistedSessions.map((session) => (
+                <option key={session.id} value={session.id}>
+                  {session.id} · {formatReplayTime(session.started_at)}
+                </option>
+              ))}
+            </select>
+            {persistedSessions.length === 0 && (
+              <p className="replay-empty">
+                No persisted sessions for this project.
+              </p>
+            )}
+            {replaySession && (
+              <>
+                <p className="replay-position">
+                  Event {replaySession.cursor + 1} of{' '}
+                  {replaySession.event_count} ·{' '}
+                  {formatReplayTime(replaySession.cursor_at)}
+                </p>
+                <input
+                  aria-label="Replay timeline"
+                  type="range"
+                  min="0"
+                  max={Math.max(0, replaySession.event_count - 1)}
+                  value={Math.max(0, replaySession.cursor)}
+                  onChange={(event) =>
+                    void openReplay(
+                      replaySession.session.id,
+                      Number(event.target.value),
+                    )
+                  }
+                />
+                <div className="replay-actions">
+                  <button
+                    type="button"
+                    aria-label="Previous access"
+                    disabled={
+                      adjacentAccessCursor(
+                        replaySession.timeline,
+                        replaySession.cursor,
+                        -1,
+                      ) === replaySession.cursor
+                    }
+                    onClick={() =>
+                      void openReplay(
+                        replaySession.session.id,
+                        adjacentAccessCursor(
+                          replaySession.timeline,
+                          replaySession.cursor,
+                          -1,
+                        ),
+                      )
+                    }
+                  >
+                    Previous access
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={isPlaying ? 'Pause replay' : 'Play replay'}
+                    disabled={replaySession.event_count < 2}
+                    onClick={() => setIsPlaying((playing) => !playing)}
+                  >
+                    {isPlaying ? 'Pause' : 'Play'}
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Next access"
+                    disabled={
+                      adjacentAccessCursor(
+                        replaySession.timeline,
+                        replaySession.cursor,
+                        1,
+                      ) === replaySession.cursor
+                    }
+                    onClick={() =>
+                      void openReplay(
+                        replaySession.session.id,
+                        adjacentAccessCursor(
+                          replaySession.timeline,
+                          replaySession.cursor,
+                          1,
+                        ),
+                      )
+                    }
+                  >
+                    Next access
+                  </button>
+                </div>
+                <label className="replay-speed">
+                  Speed
+                  <select
+                    aria-label="Replay speed"
+                    value={playbackSpeed}
+                    onChange={(event) =>
+                      setPlaybackSpeed(Number(event.target.value))
+                    }
+                  >
+                    <option value="0.5">0.5×</option>
+                    <option value="1">1×</option>
+                    <option value="2">2×</option>
+                    <option value="4">4×</option>
+                  </select>
+                </label>
+              </>
+            )}
+            {replayError && <p className="error">{replayError}</p>}
           </div>
           <div className="rule" />
           <p className="panel__label">MODE</p>

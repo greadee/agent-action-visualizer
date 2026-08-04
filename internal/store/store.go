@@ -20,6 +20,14 @@ var migrations embed.FS
 
 type Store struct{ db *sql.DB }
 
+type SessionSummary struct {
+	ID        string     `json:"id"`
+	ProjectID string     `json:"project_id"`
+	StartedAt time.Time  `json:"started_at"`
+	StoppedAt *time.Time `json:"stopped_at,omitempty"`
+	Status    string     `json:"status"`
+}
+
 func Open(path string) (*Store, error) {
 	if path == "" {
 		return nil, errors.New("database path is required")
@@ -98,6 +106,16 @@ func (s *Store) SaveEvent(ctx context.Context, event protocol.Event) error {
 	return err
 }
 
+// EnsureProject records the local project identity required by session rows.
+func (s *Store) EnsureProject(ctx context.Context, id, root string) error {
+	if id == "" || root == "" {
+		return errors.New("project id and root are required")
+	}
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	_, err := s.db.ExecContext(ctx, `INSERT INTO projects(id,root,created_at,updated_at) VALUES(?,?,?,?) ON CONFLICT(id) DO UPDATE SET root=excluded.root,updated_at=excluded.updated_at`, id, root, now, now)
+	return err
+}
+
 func (s *Store) Events(ctx context.Context, sessionID string) ([]protocol.Event, error) {
 	rows, err := s.db.QueryContext(ctx, "SELECT event_json FROM events WHERE session_id=? ORDER BY sequence", sessionID)
 	if err != nil {
@@ -147,6 +165,37 @@ func (s *Store) Session(ctx context.Context, id string) (session.State, error) {
 		return session.State{}, err
 	}
 	return state, nil
+}
+
+// Sessions returns persisted session metadata only, newest first.
+func (s *Store) Sessions(ctx context.Context, projectID string) ([]SessionSummary, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT id,COALESCE(project_id,''),started_at,stopped_at,status FROM sessions WHERE project_id=? ORDER BY started_at DESC`, projectID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []SessionSummary
+	for rows.Next() {
+		var item SessionSummary
+		var started string
+		var stopped sql.NullString
+		if err := rows.Scan(&item.ID, &item.ProjectID, &started, &stopped, &item.Status); err != nil {
+			return nil, err
+		}
+		var err error
+		if item.StartedAt, err = time.Parse(time.RFC3339Nano, started); err != nil {
+			return nil, err
+		}
+		if stopped.Valid {
+			value, err := time.Parse(time.RFC3339Nano, stopped.String)
+			if err != nil {
+				return nil, err
+			}
+			item.StoppedAt = &value
+		}
+		out = append(out, item)
+	}
+	return out, rows.Err()
 }
 
 func (s *Store) RecoverActiveSessions(ctx context.Context, at time.Time) (int, error) {

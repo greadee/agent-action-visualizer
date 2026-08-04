@@ -117,4 +117,32 @@ describe('App', () => {
     ).toBeNull()
     expect(screen.getByText('session travel → newest')).toBeTruthy()
   })
+
+  it('replays a persisted session without mixing it into live focus', async () => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'Next review event' }))
+    await waitFor(() =>
+      expect(screen.getByText('1 of 1 accesses')).toBeTruthy(),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Next review event' }))
+    await waitFor(() =>
+      expect(screen.getByText('2 of 2 accesses')).toBeTruthy(),
+    )
+    const sessions = screen.getByRole('combobox', {
+      name: 'Persisted session',
+    })
+    fireEvent.focus(sessions)
+    await waitFor(() =>
+      expect(screen.getByRole('option', { name: /p4-review/ })).toBeTruthy(),
+    )
+    fireEvent.change(sessions, { target: { value: 'p4-review' } })
+    await waitFor(() => expect(screen.getByText('REPLAY')).toBeTruthy())
+    expect(screen.getByText('Event 3 of 3', { exact: false })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Previous access' }))
+    await waitFor(() =>
+      expect(screen.getByText('Event 2 of 3', { exact: false })).toBeTruthy(),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Return live' }))
+    await waitFor(() => expect(screen.getByText('LIVE')).toBeTruthy())
+  })
 })

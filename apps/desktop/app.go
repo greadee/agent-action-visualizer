@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"runtime"
 	"sync"
 	"time"
@@ -13,7 +15,9 @@ import (
 	"github.com/greadee/agent-action-visualizer/internal/ingest"
 	localipc "github.com/greadee/agent-action-visualizer/internal/ipc"
 	"github.com/greadee/agent-action-visualizer/internal/project"
+	"github.com/greadee/agent-action-visualizer/internal/replay"
 	"github.com/greadee/agent-action-visualizer/internal/session"
+	"github.com/greadee/agent-action-visualizer/internal/store"
 	protocol "github.com/greadee/agent-action-visualizer/protocol/go"
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -32,6 +36,16 @@ type App struct {
 	ipc             *localipc.Server
 	ipcEndpoint     string
 	collectorStatus string
+	journal         *store.Store
+	journalQueue    chan journalRecord
+	journalDone     chan struct{}
+	journalStatus   string
+}
+
+type journalRecord struct {
+	event     protocol.Event
+	state     session.State
+	projectID string
 }
 
 func NewApp() *App {
@@ -54,6 +68,7 @@ func NewApp() *App {
 
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+	a.startJournal()
 	a.startCollector()
 }
 
@@ -64,6 +79,7 @@ func (a *App) shutdown(context.Context) {
 	a.events.Stop()
 	a.diffs.Close()
 	<-a.diffDone
+	a.stopJournal()
 }
 
 // Health reports the embedded collector shell state without network access.
@@ -71,9 +87,83 @@ func (a *App) Health() map[string]string {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	return map[string]string{
-		"service":   "agent-action-visualizer",
-		"status":    "ready",
-		"collector": a.collectorStatus,
+		"service":     "agent-action-visualizer",
+		"status":      "ready",
+		"collector":   a.collectorStatus,
+		"persistence": a.journalStatus,
+	}
+}
+
+func (a *App) startJournal() {
+	directory, err := os.UserConfigDir()
+	if err != nil {
+		a.journalStatus = "unavailable"
+		return
+	}
+	if err := os.MkdirAll(filepath.Join(directory, "agent-action-visualizer"), 0o700); err != nil {
+		a.journalStatus = "unavailable"
+		return
+	}
+	a.startJournalAt(filepath.Join(directory, "agent-action-visualizer", "sessions.db"))
+}
+
+func (a *App) startJournalAt(path string) {
+	journal, err := store.Open(path)
+	if err != nil {
+		a.journalStatus = "unavailable"
+		return
+	}
+	a.mu.Lock()
+	if a.journal != nil {
+		a.mu.Unlock()
+		_ = journal.Close()
+		return
+	}
+	a.journal, a.journalQueue, a.journalDone = journal, make(chan journalRecord, 256), make(chan struct{})
+	a.journalStatus = "ready"
+	queue, done := a.journalQueue, a.journalDone
+	a.mu.Unlock()
+	go func() {
+		defer close(done)
+		for record := range queue {
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+			if record.projectID != "" {
+				_ = journal.EnsureProject(ctx, record.projectID, record.projectID)
+			}
+			_ = journal.SaveEvent(ctx, record.event)
+			_ = journal.SaveSession(ctx, record.state, record.projectID)
+			cancel()
+		}
+	}()
+}
+
+func (a *App) stopJournal() {
+	a.mu.Lock()
+	journal, queue, done := a.journal, a.journalQueue, a.journalDone
+	a.journal, a.journalQueue, a.journalDone = nil, nil, nil
+	if journal != nil {
+		a.journalStatus = "stopped"
+	}
+	a.mu.Unlock()
+	if queue != nil {
+		close(queue)
+		<-done
+	}
+	if journal != nil {
+		_ = journal.Close()
+	}
+}
+
+// queueJournal never blocks lifecycle observation; a saturated or unavailable
+// local journal only loses replay history, not agent behavior.
+func (a *App) queueJournal(event protocol.Event, state session.State) {
+	if a.journalQueue == nil {
+		return
+	}
+	select {
+	case a.journalQueue <- journalRecord{event: event, state: state, projectID: a.root}:
+	default:
+		a.journalStatus = "degraded"
 	}
 }
 
@@ -130,6 +220,30 @@ type liveFocusDTO struct {
 	Confidence       protocol.Confidence `json:"confidence,omitempty"`
 	Timestamp        time.Time           `json:"timestamp,omitempty"`
 	Trail            []trailAccessDTO    `json:"trail"`
+}
+
+type sessionSummaryDTO struct {
+	ID        string     `json:"id"`
+	StartedAt time.Time  `json:"started_at"`
+	StoppedAt *time.Time `json:"stopped_at,omitempty"`
+	Status    string     `json:"status"`
+}
+
+type replayTimelineDTO struct {
+	Index     int                `json:"index"`
+	Timestamp time.Time          `json:"timestamp"`
+	EventType protocol.EventType `json:"event_type"`
+	Path      string             `json:"path,omitempty"`
+	IsAccess  bool               `json:"is_access"`
+}
+
+type replaySessionDTO struct {
+	Session    sessionSummaryDTO   `json:"session"`
+	Cursor     int                 `json:"cursor"`
+	EventCount int                 `json:"event_count"`
+	CursorAt   time.Time           `json:"cursor_at,omitempty"`
+	Focus      liveFocusDTO        `json:"focus"`
+	Timeline   []replayTimelineDTO `json:"timeline"`
 }
 
 type trailAccessDTO struct {
@@ -202,6 +316,7 @@ func (a *App) PublishActivityEvent(event protocol.Event) (liveFocusDTO, error) {
 		return liveFocusDTO{}, err
 	}
 	state = a.submitDiff(normalized, state)
+	a.queueJournal(normalized, state)
 	result := a.liveFocusDTO(state)
 	if a.ctx != nil {
 		wailsruntime.EventsEmit(a.ctx, "aav:focus", result)
@@ -268,7 +383,79 @@ func (a *App) consumeDiffResults() {
 		if err == nil && a.ctx != nil {
 			wailsruntime.EventsEmit(a.ctx, "aav:focus", a.liveFocusDTO(state))
 		}
+		if err == nil {
+			event := protocol.Event{SchemaVersion: protocol.SchemaVersion, EventID: "diff:" + result.Key, SessionID: result.SessionID, SourceType: protocol.SourceGit, SourceConfidence: result.Confidence, EventType: protocol.EventDiffCalculated, Timestamp: time.Now().UTC(), Status: string(result.Status), Operation: string(result.Source), LinesAdded: result.LinesAdded, LinesDeleted: result.LinesDeleted, Metadata: map[string]interface{}{"access_sequence": result.Sequence}}
+			a.queueJournal(event, state)
+		}
 		a.mu.Unlock()
+	}
+}
+
+// ListPersistedSessions exposes current-project session metadata only.
+func (a *App) ListPersistedSessions() ([]sessionSummaryDTO, error) {
+	a.mu.Lock()
+	journal, root := a.journal, a.root
+	a.mu.Unlock()
+	if journal == nil || root == "" {
+		return []sessionSummaryDTO{}, nil
+	}
+	items, err := journal.Sessions(context.Background(), root)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]sessionSummaryDTO, 0, len(items))
+	for _, item := range items {
+		result = append(result, sessionSummaryDTO{ID: item.ID, StartedAt: item.StartedAt, StoppedAt: item.StoppedAt, Status: item.Status})
+	}
+	return result, nil
+}
+
+// ReplayPersistedSession rebuilds the selected session at a stable event cursor.
+func (a *App) ReplayPersistedSession(sessionID string, cursor int) (replaySessionDTO, error) {
+	a.mu.Lock()
+	journal, root := a.journal, a.root
+	a.mu.Unlock()
+	if journal == nil || root == "" {
+		return replaySessionDTO{}, errors.New("persisted session history is unavailable")
+	}
+	items, err := journal.Sessions(context.Background(), root)
+	if err != nil {
+		return replaySessionDTO{}, err
+	}
+	var summary sessionSummaryDTO
+	for _, item := range items {
+		if item.ID == sessionID {
+			summary = sessionSummaryDTO{ID: item.ID, StartedAt: item.StartedAt, StoppedAt: item.StoppedAt, Status: item.Status}
+			break
+		}
+	}
+	if summary.ID == "" {
+		return replaySessionDTO{}, errors.New("session is not available for the loaded project")
+	}
+	events, err := journal.Events(context.Background(), sessionID)
+	if err != nil {
+		return replaySessionDTO{}, err
+	}
+	snapshot, err := replay.Reconstruct(events, cursor, 2*time.Minute)
+	if err != nil {
+		return replaySessionDTO{}, err
+	}
+	a.mu.Lock()
+	focus := a.liveFocusDTO(snapshot.State)
+	a.mu.Unlock()
+	timeline := make([]replayTimelineDTO, 0, len(events))
+	for index, event := range events {
+		timeline = append(timeline, replayTimelineDTO{Index: index, Timestamp: event.Timestamp, EventType: event.EventType, Path: event.Path, IsAccess: replayAccessEvent(event.EventType)})
+	}
+	return replaySessionDTO{Session: summary, Cursor: snapshot.Cursor, EventCount: snapshot.EventCount, CursorAt: snapshot.CursorAt, Focus: focus, Timeline: timeline}, nil
+}
+
+func replayAccessEvent(eventType protocol.EventType) bool {
+	switch eventType {
+	case protocol.EventFileFocused, protocol.EventFileRead, protocol.EventFileCreated, protocol.EventFileModified, protocol.EventFilePatched, protocol.EventFileRenamed, protocol.EventFileMoved, protocol.EventFileDeleted:
+		return true
+	default:
+		return false
 	}
 }
 
