@@ -1,0 +1,6 @@
+{
+  "session_id": "claude-session-example",
+  "cwd": "/workspace",
+  "hook_event_name": "SessionEnd",
+  "reason": "other"
+}
