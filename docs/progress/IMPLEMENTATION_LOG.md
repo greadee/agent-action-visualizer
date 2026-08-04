@@ -409,3 +409,17 @@
 - Known limitations: official command hooks are documented, but this Windows host has no `claude` executable, Claude settings directory, global CLI package, Claude/Anthropic environment key, or WSL installation. No version, hook payload, installer behavior, stdout/stderr behavior, exit-code preservation, or real session was validated. Claude support remains optional and unverified; future work requires an installed executable and disposable trusted project validation. The existing Vite bundle-size warning remains deferred to P9.
 - Phase summary: Phase 7 now provides a stable public adapter contract, a transparent generic process wrapper, bounded recursive filesystem/Git fallback observation, and honest Claude Code compatibility evidence. All implemented adapters preserve local-only, failure-open observation; the Claude surface is documented but deliberately not enabled without a verified local runtime.
 - Next slice: P8-S1 - Timeline / implement
+
+## P8-S1 - Timeline / implement
+
+- Phase: 8
+- Slice: P8-S1
+- Feature: Persisted session timeline and deterministic replay
+- Action: Implement
+- Status: complete
+- Files changed: bounded asynchronous local SQLite session journal; current-project session selection; pure cursor-bounded replay reconstruction including persisted work results; replay timeline, scrubber, playback speed, next/previous access controls, and return-to-live behavior; preview fixtures, desktop integration tests, and frontend accessibility tests
+- Tests run: `npm ci`; complete root and desktop Go tests/vet; Prettier, ESLint, TypeScript, Vitest (37 tests), Vite production build, Wails Windows production build, and direct browser review of empty history, replay selection, time geometry, access navigation boundaries, and return to live
+- Benchmark result: not applicable; persistence runs through a bounded 256-record asynchronous queue with one-second local database deadlines and drops replay history rather than blocking observation when unavailable or saturated
+- Commit SHA: `4ef9dcf`
+- Known limitations: replay history begins only after this build is used, and depends on the local journal remaining available; existing sessions from before P8-S1 are not reconstructed. The existing Vite bundle-size warning and three pre-existing npm audit advisories remain deferred to P9.
+- Next slice: P8-S2 - Filtering / implement
