@@ -394,3 +394,18 @@
 - CI follow-up SHA: `8c5bdd286e3859c7150c97c3e243eea609800461`; defines observer readiness after recursive watch installation and raw-event drain startup so the real-watcher contract is scheduler-independent on Linux and Windows
 - Known limitations: OS watcher delivery can lose evidence during kernel overflow or on unsupported/network filesystems; the shared ignore matcher preserves the established subset and does not implement negation rules; directory rename correlation requires Git evidence; session-window attribution cannot identify a specific child tool without native or structured evidence; race builds were unavailable because this Windows host has CGO disabled and no C compiler; macOS and Linux watcher behavior is implementation-covered but not run on those hosts; the existing Vite bundle-size warning remains deferred to P9
 - Next slice: P7-S4 - Claude adapter / implement where stable
+
+## P7-S4 - Claude adapter / implement where stable
+
+- Phase: 7
+- Slice: P7-S4
+- Feature: Optional Claude Code adapter
+- Action: Verify compatibility boundary
+- Status: complete
+- Files changed: current primary-source Claude Code hook/settings compatibility record and sanitized schema-shaped session and post-tool fixtures; no adapter executable, installer, hook configuration, project trust, or Claude settings mutation
+- Tests run: fixture JSON parse and placeholder audit; complete root and desktop Go tests/vet; `npm ci`; Prettier, ESLint, TypeScript, Vitest (34 tests), Vite production build, and Wails Windows production build
+- Benchmark result: not applicable; no Claude runtime path was installed or invoked
+- Commit SHA: `cf5b3a84c3dbf0c4943e95bb5ba0a7959dd82f32`
+- Known limitations: official command hooks are documented, but this Windows host has no `claude` executable, Claude settings directory, global CLI package, Claude/Anthropic environment key, or WSL installation. No version, hook payload, installer behavior, stdout/stderr behavior, exit-code preservation, or real session was validated. Claude support remains optional and unverified; future work requires an installed executable and disposable trusted project validation. The existing Vite bundle-size warning remains deferred to P9.
+- Phase summary: Phase 7 now provides a stable public adapter contract, a transparent generic process wrapper, bounded recursive filesystem/Git fallback observation, and honest Claude Code compatibility evidence. All implemented adapters preserve local-only, failure-open observation; the Claude surface is documented but deliberately not enabled without a verified local runtime.
+- Next slice: P8-S1 - Timeline / implement
