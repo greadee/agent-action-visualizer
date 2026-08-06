@@ -423,3 +423,18 @@
 - Commit SHA: `4ef9dcf`
 - Known limitations: replay history begins only after this build is used, and depends on the local journal remaining available; existing sessions from before P8-S1 are not reconstructed. The existing Vite bundle-size warning and three pre-existing npm audit advisories remain deferred to P9.
 - Next slice: P8-S2 - Filtering / implement
+
+## P8-S2 - Filtering / implement
+
+- Phase: 8
+- Slice: P8-S2
+- Feature: Deterministic visualization filtering and preferences
+- Action: Implement
+- Status: complete
+- Files changed: pure frontend graph and access filter engine; path/directory, file type, operation, confidence, agent, and time-range controls; filtered search and focus integration; local visualization preference persistence; reset and empty-state behavior; combined-filter and rendered UI coverage
+- Tests run: `npm ci`; complete root and desktop Go tests/vet with slice-local Go caches after the host cache returned access denied; Prettier, ESLint, TypeScript, Vitest (42 tests), Vite production build, Wails Windows production build, and `git diff --check`
+- Visual or E2E validation: direct browser validation of accessible filter controls, generated review accesses, combined path/operation/confidence/agent filtering, filtered-focus feedback, search constrained to the visible graph, reset behavior, and visual layout
+- Benchmark result: not applicable; filtering is pure memoized frontend state and does not affect observation, persistence, adapters, or model context
+- Commit SHA: `7bf349338e3c8cecda3fc55f1b77ea802bbdfb40`
+- Known limitations: preferences are local UI storage and are not shared between machines; relative time windows use the replay cursor during replay and wall-clock time while live; the existing Vite bundle-size warning, Three.js `Clock` deprecation warning, and pre-existing npm audit advisories remain deferred to P9
+- Next slice: P8-S3 - Session analytics / implement
