@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import App from '../src/App'
 
 vi.mock('@react-three/fiber', () => ({
@@ -7,6 +7,10 @@ vi.mock('@react-three/fiber', () => ({
 }))
 
 describe('App', () => {
+  beforeEach(() => {
+    window.localStorage.clear()
+  })
+
   it('identifies the local-only empty state', () => {
     render(<App />)
     expect(screen.getByText('Deterministic project hierarchy')).toBeTruthy()
@@ -56,9 +60,7 @@ describe('App', () => {
     fireEvent.click(
       screen.getByRole('button', { name: 'Add work review batch' }),
     )
-    await waitFor(() =>
-      expect(screen.getByText('7 of 7 accesses')).toBeTruthy(),
-    )
+    await waitFor(() => expectAccessCount('7 of 7 accesses'))
     fireEvent.click(screen.getByRole('button', { name: 'Work' }))
     expect(
       screen.getByText('outward = additions · inward = deletions'),
@@ -94,13 +96,9 @@ describe('App', () => {
   it('switches between a bounded recent trail and the complete session', async () => {
     render(<App />)
     fireEvent.click(screen.getByRole('button', { name: 'Next review event' }))
-    await waitFor(() =>
-      expect(screen.getByText('1 of 1 accesses')).toBeTruthy(),
-    )
+    await waitFor(() => expectAccessCount('1 of 1 accesses'))
     fireEvent.click(screen.getByRole('button', { name: 'Next review event' }))
-    await waitFor(() =>
-      expect(screen.getByText('2 of 2 accesses')).toBeTruthy(),
-    )
+    await waitFor(() => expectAccessCount('2 of 2 accesses'))
 
     const limit = screen.getByRole('spinbutton', {
       name: 'Recent trail access limit',
@@ -121,13 +119,9 @@ describe('App', () => {
   it('replays a persisted session without mixing it into live focus', async () => {
     render(<App />)
     fireEvent.click(screen.getByRole('button', { name: 'Next review event' }))
-    await waitFor(() =>
-      expect(screen.getByText('1 of 1 accesses')).toBeTruthy(),
-    )
+    await waitFor(() => expectAccessCount('1 of 1 accesses'))
     fireEvent.click(screen.getByRole('button', { name: 'Next review event' }))
-    await waitFor(() =>
-      expect(screen.getByText('2 of 2 accesses')).toBeTruthy(),
-    )
+    await waitFor(() => expectAccessCount('2 of 2 accesses'))
     const sessions = screen.getByRole('combobox', {
       name: 'Persisted session',
     })
@@ -145,4 +139,45 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Return live' }))
     await waitFor(() => expect(screen.getByText('LIVE')).toBeTruthy())
   })
+
+  it('filters paths, operations, confidence, agents, and persists preferences', async () => {
+    const { unmount } = render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'Next review event' }))
+    await waitFor(() => expectAccessCount('1 of 1 accesses'))
+    fireEvent.click(screen.getByRole('button', { name: 'Next review event' }))
+    await waitFor(() => expectAccessCount('2 of 2 accesses'))
+
+    fireEvent.change(
+      screen.getByRole('searchbox', { name: 'PATH / DIRECTORY' }),
+      {
+        target: { value: 'App' },
+      },
+    )
+    fireEvent.click(screen.getByRole('checkbox', { name: 'patch' }))
+    fireEvent.click(screen.getByRole('checkbox', { name: 'exact' }))
+    fireEvent.click(screen.getByRole('checkbox', { name: 'unknown' }))
+    expectAccessCount('1 of 2 accesses')
+    expect(screen.getByText('Filtered from current view')).toBeTruthy()
+
+    fireEvent.change(screen.getByRole('searchbox', { name: 'SEARCH' }), {
+      target: { value: 'GraphScene' },
+    })
+    expect(
+      screen.queryByRole('button', { name: 'src/scene/GraphScene.tsx' }),
+    ).toBeNull()
+    unmount()
+
+    render(<App />)
+    expect(
+      screen.getByRole('searchbox', { name: 'PATH / DIRECTORY' }),
+    ).toHaveProperty('value', 'App')
+    fireEvent.click(screen.getByRole('button', { name: 'Reset filters' }))
+    expect(
+      screen.getByRole('searchbox', { name: 'PATH / DIRECTORY' }),
+    ).toHaveProperty('value', '')
+  })
 })
+
+function expectAccessCount(text: string) {
+  expect(screen.getAllByText(text).length).toBeGreaterThan(0)
+}

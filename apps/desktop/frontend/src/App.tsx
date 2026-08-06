@@ -1,6 +1,6 @@
 import { SegmentedControl } from '@prool-ui/react'
 import { Canvas } from '@react-three/fiber'
-import { startTransition, useEffect, useRef, useState } from 'react'
+import { startTransition, useEffect, useMemo, useRef, useState } from 'react'
 import './App.css'
 import type { ActivityMode } from './activity/extrusions'
 import {
@@ -10,6 +10,16 @@ import {
   formatVisualCap,
 } from './activity/displaySettings'
 import { useGraphBridge } from './bridge/useGraphBridge'
+import {
+  DEFAULT_VISUALIZATION_FILTERS,
+  applyVisualizationFilters,
+  availableFilterValues,
+  hasActiveFilters,
+  normalizeVisualizationFilters,
+  toggleFilterValue,
+  type TimeRangeMode,
+  type VisualizationFilters,
+} from './filters/graphFilters'
 import { demoGraph } from './graph/demoGraph'
 import type { LiveFocusState, ReplaySession, TrailAccess } from './graph/types'
 import { NodeInspector } from './inspector/NodeInspector'
@@ -19,6 +29,7 @@ import { selectTrailAccesses } from './scene/trail'
 import { adjacentAccessCursor, formatReplayTime } from './replay/timeline'
 
 const reviewEpoch = Date.parse('2026-07-21T18:00:00Z')
+const filterPreferenceKey = 'aav.visualizationFilters.v1'
 
 function App() {
   const [selectedId, setSelectedId] = useState('root')
@@ -52,6 +63,9 @@ function App() {
   const [isPlaying, setIsPlaying] = useState(false)
   const [playbackSpeed, setPlaybackSpeed] = useState(1)
   const [replayError, setReplayError] = useState('')
+  const [filters, setFilters] = useState<VisualizationFilters>(() =>
+    loadFilterPreferences(),
+  )
   const reviewStep = useRef(0)
   const reviewStarted = useRef(false)
   const latestFocus = useRef<LiveFocusState | undefined>(undefined)
@@ -64,15 +78,38 @@ function App() {
     replayPersistedSession,
   } = useGraphBridge(demoGraph)
   const isReplaying = Boolean(replaySession)
-  const selected = graph.nodes.find((node) => node.id === selectedId)
+  const filterClockMs = replaySession?.cursor_at
+    ? Date.parse(replaySession.cursor_at)
+    : Date.now()
+  const filtered = useMemo(
+    () =>
+      applyVisualizationFilters(
+        graph,
+        displayedFocus,
+        filters,
+        Number.isNaN(filterClockMs) ? Date.now() : filterClockMs,
+      ),
+    [displayedFocus, filterClockMs, filters, graph],
+  )
+  const filterOptions = useMemo(
+    () => availableFilterValues(graph, displayedFocus),
+    [displayedFocus, graph],
+  )
+  const filtersActive = hasActiveFilters(filters)
+  const visibleGraph = filtered.graph
+  const visibleFocus = filtered.focus
+  const visibleFileCount = visibleGraph.nodes.filter(
+    (node) => node.kind !== 'root' && node.kind !== 'directory',
+  ).length
+  const selected = visibleGraph.nodes.find((node) => node.id === selectedId)
   const matches = query
-    ? graph.nodes
+    ? visibleGraph.nodes
         .filter((node) => node.path.toLowerCase().includes(query.toLowerCase()))
         .slice(0, 5)
     : []
   const trailAccessCount = displayedFocus?.trail.length ?? 0
   const visibleTrailAccessCount = selectTrailAccesses(
-    displayedFocus?.trail ?? [],
+    visibleFocus?.trail ?? [],
     {
       recentAccesses: recentTrailAccesses,
       completeSession: completeTrail,
@@ -81,20 +118,26 @@ function App() {
   ).length
 
   useEffect(() => {
-    if (!selected && graph.nodes[0]) setSelectedId(graph.nodes[0].id)
-  }, [graph.nodes, selected])
+    if (!selected && visibleGraph.nodes[0])
+      setSelectedId(visibleGraph.nodes[0].id)
+  }, [selected, visibleGraph.nodes])
+
+  useEffect(() => {
+    saveFilterPreferences(filters)
+  }, [filters])
 
   useEffect(() => {
     latestFocus.current = liveFocus
   }, [liveFocus])
 
   useEffect(() => {
-    if (!selectedAccess || !displayedFocus) return
-    const updated = displayedFocus.trail.find(
+    if (!selectedAccess || !visibleFocus) return
+    const updated = visibleFocus.trail.find(
       (access) => access.sequence === selectedAccess.sequence,
     )
     if (updated && updated !== selectedAccess) setSelectedAccess(updated)
-  }, [displayedFocus, selectedAccess])
+    if (!updated) setSelectedAccess(undefined)
+  }, [selectedAccess, visibleFocus])
 
   useEffect(() => {
     if (livePaused || isReplaying || !liveFocus) return
@@ -122,6 +165,27 @@ function App() {
     setSelectedAccess(undefined)
     setCameraFocusId(id)
     if (autoFollow && !livePaused) setManualHold(true)
+  }
+
+  function updateFilters(next: Partial<VisualizationFilters>) {
+    setFilters((current) =>
+      normalizeVisualizationFilters({ ...current, ...next }),
+    )
+  }
+
+  function toggleFilterList(
+    key: 'fileTypes' | 'operations' | 'confidences' | 'agents',
+    value: string,
+  ) {
+    setFilters((current) => ({
+      ...current,
+      [key]: toggleFilterValue(current[key], value),
+    }))
+  }
+
+  function resetFilters() {
+    setFilters(DEFAULT_VISUALIZATION_FILTERS)
+    setQuery('')
   }
 
   function returnToLive() {
@@ -392,6 +456,96 @@ function App() {
             </div>
           )}
           <div className="rule" />
+          <p className="panel__label">FILTERS</p>
+          <label className="panel__label" htmlFor="path-filter">
+            PATH / DIRECTORY
+          </label>
+          <input
+            id="path-filter"
+            type="search"
+            placeholder="Filter visible paths"
+            value={filters.path}
+            onChange={(event) => updateFilters({ path: event.target.value })}
+          />
+          <label className="panel__label" htmlFor="time-filter">
+            TIME RANGE
+          </label>
+          <select
+            id="time-filter"
+            aria-label="Time range filter"
+            value={filters.timeRange}
+            onChange={(event) =>
+              updateFilters({ timeRange: event.target.value as TimeRangeMode })
+            }
+          >
+            <option value="all">All time</option>
+            <option value="last-hour">Last hour</option>
+            <option value="last-day">Last day</option>
+            <option value="custom">Custom range</option>
+          </select>
+          {filters.timeRange === 'custom' && (
+            <div className="filter-range">
+              <input
+                aria-label="Filter start time"
+                type="datetime-local"
+                value={filters.customStart}
+                onChange={(event) =>
+                  updateFilters({ customStart: event.target.value })
+                }
+              />
+              <input
+                aria-label="Filter end time"
+                type="datetime-local"
+                value={filters.customEnd}
+                onChange={(event) =>
+                  updateFilters({ customEnd: event.target.value })
+                }
+              />
+            </div>
+          )}
+          <FilterGroup
+            label="File type filters"
+            options={filterOptions.fileTypes}
+            selected={filters.fileTypes}
+            onToggle={(value) => toggleFilterList('fileTypes', value)}
+          />
+          <FilterGroup
+            label="Operation filters"
+            options={filterOptions.operations}
+            selected={filters.operations}
+            onToggle={(value) => toggleFilterList('operations', value)}
+          />
+          <FilterGroup
+            label="Confidence filters"
+            options={filterOptions.confidences}
+            selected={filters.confidences}
+            onToggle={(value) => toggleFilterList('confidences', value)}
+          />
+          <FilterGroup
+            label="Agent filters"
+            options={filterOptions.agents}
+            selected={filters.agents}
+            onToggle={(value) => toggleFilterList('agents', value)}
+          />
+          <div className="filter-summary" aria-live="polite">
+            <span>
+              {visibleGraph.nodes.length} of {graph.nodes.length} nodes
+            </span>
+            <span>
+              {filtered.visibleAccesses} of {trailAccessCount} accesses
+            </span>
+          </div>
+          <button
+            type="button"
+            disabled={!filtersActive && !query}
+            onClick={resetFilters}
+          >
+            Reset filters
+          </button>
+          {filtersActive && visibleFileCount === 0 && (
+            <p className="replay-empty">No files match the current filters.</p>
+          )}
+          <div className="rule" />
           <p className="panel__label">LIVE FOCUS</p>
           <div className="focus-readout" aria-live="polite">
             <span
@@ -406,11 +560,14 @@ function App() {
                     : 'LIVE'}
             </span>
             <strong>
-              {displayedFocus?.active_path ?? 'Waiting for focus event'}
+              {visibleFocus?.active_path ??
+                (filtersActive
+                  ? 'Filtered from current view'
+                  : 'Waiting for focus event')}
             </strong>
             <small>
-              {displayedFocus?.operation
-                ? `${displayedFocus.operation} · ${displayedFocus.confidence ?? 'unknown'}`
+              {visibleFocus?.operation
+                ? `${visibleFocus.operation} · ${visibleFocus.confidence ?? 'unknown'}`
                 : 'No current operation'}
             </small>
           </div>
@@ -772,7 +929,7 @@ function App() {
           <Canvas camera={{ position: [0, 0, 28], fov: 48 }}>
             <color attach="background" args={['#070a12']} />
             <GraphScene
-              graph={graph}
+              graph={visibleGraph}
               selectedId={selectedId}
               recenterKey={recenterKey}
               showLabels={showLabels}
@@ -785,7 +942,7 @@ function App() {
               hideTrailRepeats={hideTrailRepeats}
               activityMode={activityMode}
               activitySettings={activitySettings}
-              focusState={displayedFocus}
+              focusState={visibleFocus}
               cameraFocusId={cameraFocusId}
               onSelect={inspectNode}
               onInspectAccess={(access) => {
@@ -802,7 +959,10 @@ function App() {
             type="button"
             onClick={() => {
               const active = displayedFocus?.active_node_id
-              if (active) {
+              if (
+                active &&
+                visibleGraph.nodes.some((node) => node.id === active)
+              ) {
                 setCameraFocusId(active)
                 setSelectedId(active)
                 setManualHold(false)
@@ -810,7 +970,7 @@ function App() {
               setRecenterKey((value) => value + 1)
             }}
           >
-            {displayedFocus?.active_node_id
+            {visibleFocus?.active_node_id
               ? 'Recenter active file'
               : 'Recenter selection'}
           </button>
@@ -833,3 +993,55 @@ function App() {
 }
 
 export default App
+
+function FilterGroup({
+  label,
+  options,
+  selected,
+  onToggle,
+}: {
+  label: string
+  options: string[]
+  selected: string[]
+  onToggle: (value: string) => void
+}) {
+  return (
+    <fieldset className="filter-group">
+      <legend>{label}</legend>
+      {options.length === 0 && <p>No observed values</p>}
+      {options.map((option) => (
+        <label key={option} className="toggle">
+          <input
+            type="checkbox"
+            checked={selected.includes(option)}
+            onChange={() => onToggle(option)}
+          />
+          {option}
+        </label>
+      ))}
+    </fieldset>
+  )
+}
+
+function loadFilterPreferences() {
+  try {
+    const stored = window.localStorage.getItem(filterPreferenceKey)
+    if (!stored) return DEFAULT_VISUALIZATION_FILTERS
+    return normalizeVisualizationFilters(
+      JSON.parse(stored) as VisualizationFilters,
+    )
+  } catch {
+    return DEFAULT_VISUALIZATION_FILTERS
+  }
+}
+
+function saveFilterPreferences(filters: VisualizationFilters) {
+  try {
+    window.localStorage.setItem(
+      filterPreferenceKey,
+      JSON.stringify(normalizeVisualizationFilters(filters)),
+    )
+  } catch {
+    // Local preference persistence is optional and must not affect rendering.
+  }
+}

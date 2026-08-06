@@ -73,6 +73,7 @@ button:focus-visible {
   outline: none;
 }
 input[type='search'],
+input[type='datetime-local'],
 input[aria-label='Project path'],
 select {
   width: 100%;
@@ -228,6 +229,39 @@ select {
   text-align: left;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.filter-range {
+  display: grid;
+  gap: 6px;
+}
+.filter-group {
+  margin: 12px 0 0;
+  border: 0;
+  padding: 0;
+}
+.filter-group legend {
+  color: #7890a7;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.filter-group p {
+  margin: 6px 0 0;
+  color: #667d91;
+  font-size: 10px;
+}
+.filter-summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 12px 0 8px;
+  color: #6fcab9;
+  font-size: 10px;
+}
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
 }
 .toggle {
   display: flex;
