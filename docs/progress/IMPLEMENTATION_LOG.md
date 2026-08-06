@@ -438,3 +438,20 @@
 - Commit SHA: `7bf349338e3c8cecda3fc55f1b77ea802bbdfb40`
 - Known limitations: preferences are local UI storage and are not shared between machines; relative time windows use the replay cursor during replay and wall-clock time while live; the existing Vite bundle-size warning, Three.js `Clock` deprecation warning, and pre-existing npm audit advisories remain deferred to P9
 - Next slice: P8-S3 - Session analytics / implement
+
+## P8-S3 - Session analytics / implement
+
+- Phase: 8
+- Slice: P8-S3
+- Feature: Deterministic session analytics
+- Action: Implement
+- Status: complete
+- Files changed: pure filter-aware analytics engine; access/file/time/work totals; created/modified/deleted/read operation counts; top file, directory, agent, event-confidence, and work-confidence buckets; explicit unknown, binary, unsupported, and pending work presentation; sidebar analytics panel; rendered UI coverage; and an npm/Wails hygiene hook that keeps installed frontend dependencies out of Go package discovery after `npm ci`
+- Tests run: `npm ci`; complete root and desktop Go tests/vet with slice-local Go caches; Prettier, ESLint, TypeScript, Vitest (45 tests), Vite production build, Wails Windows production build, and `git diff --check`
+- Visual or E2E validation: direct browser validation of the analytics panel in empty, work-review, and filtered states; exact `+10043 / -5021` work total, unknown/binary counts, filtered exact values, top-file display, and accessibility labels were observed. Browser logs had no errors; the existing Three.js `Clock` deprecation warning remains.
+- Benchmark result: not applicable; analytics are deterministic pure frontend calculations over the current filtered graph and trail, with no observation, persistence, adapter, network, or model-context work
+- Commit SHA: `98ee273298e5a9c2f6f1e0ec6642b83ee10be58f`
+- Build fix SHA: `b03d1aef05e8b4da9e9088fb2701ca059a8471a0`; writes an ignored `node_modules/go.mod` during `npm ci` so Wails/Go package discovery does not scan npm dependency internals
+- Known limitations: analytics only reflect records available in the current live or replay trail after filters; subagent activity is reported through available agent identifiers and remains `unknown` when adapters do not provide one; existing Vite bundle-size warning, Three.js `Clock` deprecation warning, and npm audit advisories remain deferred to P9
+- Phase summary: Phase 8 now provides persisted-session replay, deterministic timeline controls, saved visualization filters, filtered search/focus behavior, and confidence-aware deterministic session analytics. Replay/live state separation, exact work/time values, unknown-value handling, and filter-aware calculations are covered by unit tests and browser validation.
+- Next slice: P9-S1 - Rendering / optimize
