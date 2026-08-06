@@ -470,3 +470,18 @@
 - Commit SHA: `a481d05f29feac44de6d42789a489dd906d4c753`
 - Known limitations: the complete 100 through 20,000-node scale campaign, burst/long-session memory analysis, and hardware-dependent degradation gates remain P9-S2; JavaScript heap and GPU timing report unsupported when browser APIs are unavailable; the current React Three Fiber path still emits the upstream `THREE.Clock` deprecation warning; one pre-existing filesystem observer timing test missed an event only while nine heavy checks competed on the host, then passed in isolation and ten consecutive targeted reruns
 - Next slice: P9-S2 - Scale / validate
+
+## P9-S2 - Scale / validate
+
+- Phase: 9
+- Slice: P9-S2
+- Feature: Reproducible rendering scale campaign and bounded overload validation
+- Action: Validate and measure
+- Status: complete
+- Files changed: deterministic development-only 100/1,000/5,000/10,000/20,000-node graph profiles with up to 100,000 exact access records; fixed-size typed structure-edge buffers; ordinary browser-preview live burst control; whole-app scale and long-session benchmarks; 100,000-event bounded ingress test and allocation benchmark; numerical fixture tests; rendering ADR and reproducible performance evidence
+- Tests run: fresh `npm ci`; complete root and desktop Go tests/vet with slice-local caches; Prettier, ESLint, TypeScript, Vitest (58 tests), Vite production build, isolated whole-app scale benchmark, three-run bounded-ingress benchmark, Wails Windows production build, targeted post-review fixture/App rerun, and `git diff --check`
+- Visual or E2E validation: direct in-app browser campaign at every required node count; 5,000 nodes with 100,000 exact accesses and 20,000 nodes with 40,000 accesses both returned to the 165 Hz display cadence; Time/Work switching, path search, a 1,000-event live bridge burst, dense-history LOD, selected labels, inspector, and diagnostics remained responsive; eight alternating 5,000/20,000-node loads held seven geometries and one texture with non-monotonic heap samples; browser logs had no errors and only the existing React Three Fiber `THREE.Clock` deprecation warning
+- Benchmark result: Windows/amd64 on AMD Ryzen 5 9600X and NVIDIA GeForce RTX 3080 with Node.js 22.22.3: deterministic graph/buffer means were 0.0538/0.4722/2.3819/4.9673/10.6778 ms for 100/1,000/5,000/10,000/20,000 nodes; 100,000-access detail selection and analytics means were 78.3127 and 85.3713 ms; the 256-event saturated ingress queue measured 1.898-1.954 microseconds per offer with zero allocations; the browser 1,000-event burst became visible in 289 ms and returned to 165 fps; 20,000 nodes held 165 fps, 0.20 ms CPU p95, 2.21 ms GPU p95, seven draw calls, and 97.8 MB sampled heap
+- Commit SHA: `88a105bd73989da8b9befff80762d0e1ffb2a7b4`
+- Known limitations: the 20,000-node unfiltered shell is visually packed and individual inspection relies on search, filters, focus, and the selected label; browser performance is validated only on the listed Windows/Chromium hardware; GPU timing and JavaScript heap remain unavailable in runtimes that do not expose them; the upstream React Three Fiber `THREE.Clock` deprecation warning remains; security hardening is deferred to P9-S3 and crash/recovery reliability to P9-S4
+- Next slice: P9-S3 - Security / harden
