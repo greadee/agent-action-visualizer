@@ -1,21 +1,21 @@
 import { Html } from '@react-three/drei'
-import { useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { memo, useLayoutEffect, useRef, useState } from 'react'
 import { Color, InstancedMesh, Matrix4, Vector3 } from 'three'
-import { buildAccessPoints } from '../activity/accessPoints'
-import type { GraphNode, TrailAccess } from '../graph/types'
+import type { AccessPoint } from '../activity/accessPoints'
+import type { TrailAccess } from '../graph/types'
+import { markerGeometrySegments } from '../rendering/lod'
 import { formatTrailTimestamp } from './trail'
 
-export function AccessPoints({
-  nodes,
-  trail,
+export const AccessPoints = memo(function AccessPoints({
+  points,
+  onInspect,
 }: {
-  nodes: readonly GraphNode[]
-  trail: readonly TrailAccess[]
+  points: readonly AccessPoint[]
+  onInspect: (access: TrailAccess) => void
 }) {
   const mesh = useRef<InstancedMesh>(null)
   const [hovered, setHovered] = useState<number>()
-  const points = useMemo(() => buildAccessPoints(trail, nodes), [nodes, trail])
-
+  const sphereSegments = markerGeometrySegments(points.length)
   useLayoutEffect(() => {
     const matrix = new Matrix4()
     points.forEach((point, index) => {
@@ -55,8 +55,16 @@ export function AccessPoints({
           setHovered(event.instanceId)
         }}
         onPointerOut={() => setHovered(undefined)}
+        onClick={(event) => {
+          event.stopPropagation()
+          const point =
+            event.instanceId === undefined
+              ? undefined
+              : points[event.instanceId]
+          if (point) onInspect(point.latest)
+        }}
       >
-        <sphereGeometry args={[1, 12, 12]} />
+        <sphereGeometry args={[1, sphereSegments, sphereSegments]} />
         <meshBasicMaterial vertexColors depthTest={false} />
       </instancedMesh>
       {hoveredPoint && latest && (
@@ -77,4 +85,4 @@ export function AccessPoints({
       )}
     </>
   )
-}
+})

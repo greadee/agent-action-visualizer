@@ -1,14 +1,15 @@
 import { Html } from '@react-three/drei'
-import { useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { memo, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Color, InstancedMesh, Matrix4, Quaternion, Vector3 } from 'three'
 import type { GraphNode, TrailAccess } from '../graph/types'
+import { useLineGeometry } from '../rendering/lineGeometry'
 import {
   buildTrailSegments,
   formatTrailTimestamp,
   type TrailOptions,
 } from './trail'
 
-export function SessionTrail({
+export const SessionTrail = memo(function SessionTrail({
   nodes,
   trail,
   options,
@@ -40,6 +41,7 @@ export function SessionTrail({
       }),
     )
   }, [segments])
+  const lineGeometry = useLineGeometry(positions, colors)
 
   useLayoutEffect(() => {
     const matrix = new Matrix4()
@@ -70,10 +72,7 @@ export function SessionTrail({
   return (
     <>
       <lineSegments renderOrder={2}>
-        <bufferGeometry>
-          <bufferAttribute attach="attributes-position" args={[positions, 3]} />
-          <bufferAttribute attach="attributes-color" args={[colors, 3]} />
-        </bufferGeometry>
+        <primitive object={lineGeometry} attach="geometry" />
         <lineBasicMaterial
           vertexColors
           transparent
@@ -109,4 +108,4 @@ export function SessionTrail({
       )}
     </>
   )
-}
+})

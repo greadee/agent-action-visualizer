@@ -1,13 +1,22 @@
 import { Html } from '@react-three/drei'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Color, InstancedMesh, Matrix4, Vector3 } from 'three'
+import { buildAccessPoints } from '../activity/accessPoints'
 import type { ActivityMode } from '../activity/extrusions'
 import type { ActivityDisplaySettings } from '../activity/displaySettings'
 import { CameraFocusController } from '../camera/CameraFocusController'
 import { nodeColors } from '../graph/palette'
 import type { GraphSnapshot, LiveFocusState, TrailAccess } from '../graph/types'
+import { useLineGeometry } from '../rendering/lineGeometry'
+import {
+  nodeGeometryDetail,
+  selectAccessPointsForRender,
+  selectActivityAccesses,
+  shouldShowHoverLabel,
+} from '../rendering/lod'
 import { focusRoleForNode } from './focusState'
 import { AccessPoints } from './AccessPoints'
+import { RenderDiagnostics } from './RenderDiagnostics'
 import { SessionTrail } from './SessionTrail'
 import { TimeExtrusions } from './TimeExtrusions'
 import { selectTrailAccesses, type TrailOptions } from './trail'
@@ -22,12 +31,14 @@ const focusColors = {
 export function GraphScene({
   graph,
   selectedId,
+  selectedAccessSequence,
   recenterKey,
   showLabels,
   showStructure,
   showActivity,
   showAccessPoints,
   showTrail,
+  showDiagnostics,
   recentTrailAccesses,
   completeTrail,
   hideTrailRepeats,
@@ -41,12 +52,14 @@ export function GraphScene({
 }: {
   graph: GraphSnapshot
   selectedId?: string
+  selectedAccessSequence?: number
   recenterKey: number
   showLabels: boolean
   showStructure: boolean
   showActivity: boolean
   showAccessPoints: boolean
   showTrail: boolean
+  showDiagnostics: boolean
   recentTrailAccesses: number
   completeTrail: boolean
   hideTrailRepeats: boolean
@@ -63,6 +76,7 @@ export function GraphScene({
   const [nowMs, setNowMs] = useState(() => Date.now())
   const selected = graph.nodes.find((n) => n.id === selectedId)
   const cameraFocus = graph.nodes.find((n) => n.id === cameraFocusId)
+  const trail = focusState?.trail ?? []
   const trailOptions = useMemo<TrailOptions>(
     () => ({
       recentAccesses: recentTrailAccesses,
@@ -135,6 +149,20 @@ export function GraphScene({
       ]),
     )
   }, [graph])
+  const structureGeometry = useLineGeometry(positions)
+  const activitySelection = useMemo(
+    () => selectActivityAccesses(trail, selectedAccessSequence),
+    [selectedAccessSequence, trail],
+  )
+  const pointSelection = useMemo(
+    () =>
+      selectAccessPointsForRender(
+        buildAccessPoints(trail, graph.nodes),
+        selectedAccessSequence,
+      ),
+    [graph.nodes, selectedAccessSequence, trail],
+  )
+  const nodeDetail = nodeGeometryDetail(graph.nodes.length)
   const hasActiveTimeInterval =
     activityMode === 'time' &&
     Boolean(focusState?.trail.some((access) => !access.ended_at))
@@ -150,19 +178,14 @@ export function GraphScene({
       <directionalLight position={[5, 8, 6]} intensity={2.5} color="#b9fff0" />
       {showStructure && (
         <lineSegments>
-          <bufferGeometry>
-            <bufferAttribute
-              attach="attributes-position"
-              args={[positions, 3]}
-            />
-          </bufferGeometry>
+          <primitive object={structureGeometry} attach="geometry" />
           <lineBasicMaterial color="#294154" transparent opacity={0.72} />
         </lineSegments>
       )}
       {showActivity && activityMode === 'time' && (
         <TimeExtrusions
           nodes={graph.nodes}
-          trail={focusState?.trail ?? []}
+          trail={activitySelection.items}
           nowMs={nowMs}
           scale={activitySettings.scale}
           visualCapMs={activitySettings.durationCapMs}
@@ -172,14 +195,17 @@ export function GraphScene({
       {showActivity && activityMode === 'work' && (
         <WorkExtrusions
           nodes={graph.nodes}
-          trail={focusState?.trail ?? []}
+          trail={activitySelection.items}
           scale={activitySettings.scale}
           visualCapLines={activitySettings.workCapLines}
           onInspect={onInspectAccess}
         />
       )}
       {showAccessPoints && (
-        <AccessPoints nodes={graph.nodes} trail={focusState?.trail ?? []} />
+        <AccessPoints
+          points={pointSelection.items}
+          onInspect={onInspectAccess}
+        />
       )}
       {showTrail && (
         <SessionTrail
@@ -193,7 +219,11 @@ export function GraphScene({
         args={[undefined, undefined, graph.nodes.length]}
         onPointerMove={(e) => {
           e.stopPropagation()
-          setHovered(e.instanceId)
+          setHovered(
+            shouldShowHoverLabel(graph.nodes.length, e.distance)
+              ? e.instanceId
+              : undefined,
+          )
         }}
         onPointerOut={() => setHovered(undefined)}
         onClick={(e) => {
@@ -203,7 +233,7 @@ export function GraphScene({
           }
         }}
       >
-        <icosahedronGeometry args={[0.22, 2]} />
+        <icosahedronGeometry args={[0.22, nodeDetail]} />
         <meshStandardMaterial roughness={0.35} metalness={0.15} />
       </instancedMesh>
       {showLabels && selected && (
@@ -216,11 +246,27 @@ export function GraphScene({
           <span className="node-label node-label--hover">{hoverNode.path}</span>
         </Html>
       )}
+      {((showActivity && activitySelection.active) ||
+        (showAccessPoints && pointSelection.active)) && (
+        <Html fullscreen zIndexRange={[30, 0]}>
+          <p className="render-lod-status" role="status">
+            Dense history LOD
+            {showActivity && activitySelection.active
+              ? ` · activity ${activitySelection.items.length} of ${activitySelection.totalCount}`
+              : ''}
+            {showAccessPoints && pointSelection.active
+              ? ` · points ${pointSelection.items.length} of ${pointSelection.totalCount}`
+              : ''}
+            {' · '}active and inspected evidence retained
+          </p>
+        </Html>
+      )}
       <CameraFocusController
         focus={cameraFocus?.position}
         recenterKey={recenterKey}
         onManualInteraction={onManualInteraction}
       />
+      <RenderDiagnostics enabled={showDiagnostics} />
     </>
   )
 }

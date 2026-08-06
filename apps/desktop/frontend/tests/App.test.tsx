@@ -20,6 +20,9 @@ describe('App', () => {
       screen.getByRole('complementary', { name: 'Node inspector' }),
     ).toBeTruthy()
     expect(screen.getByLabelText('Graph legend')).toBeTruthy()
+    expect(
+      screen.getByRole('checkbox', { name: 'Render diagnostics' }),
+    ).toBeTruthy()
     expect(screen.getByRole('checkbox', { name: 'Access points' })).toBeTruthy()
     expect(
       screen.getByRole('button', { name: 'Add duration review batch' }),

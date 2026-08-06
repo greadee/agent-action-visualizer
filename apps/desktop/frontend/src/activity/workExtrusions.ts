@@ -1,7 +1,7 @@
-import { Vector3 } from 'three'
 import { accessAnchor } from './accessPoints'
 import type { DurationScale } from './timeExtrusions'
 import type { GraphNode, TrailAccess, Vec3 } from '../graph/types'
+import { addScaled, normalize, subtract } from '../rendering/vectorMath'
 
 export type WorkDirection = 'addition' | 'deletion'
 
@@ -62,9 +62,7 @@ export function workExtrusionLength(
 }
 
 function outwardFromAnchor(anchor: Vec3, node: GraphNode): Vec3 {
-  const direction = new Vector3(...anchor).sub(new Vector3(...node.position))
-  if (direction.lengthSq() === 0) return [0, 0, 1]
-  return direction.normalize().toArray() as unknown as Vec3
+  return normalize(subtract(anchor, node.position))
 }
 
 function workStatus(
@@ -131,9 +129,7 @@ export function buildWorkGeometry(
       if (value === 0) continue
       const length = workExtrusionLength(value, maximum, scale)
       const sign = direction === 'addition' ? 1 : -1
-      const end = new Vector3(...start)
-        .addScaledVector(new Vector3(...outward), length * sign)
-        .toArray() as unknown as Vec3
+      const end = addScaled(start, outward, length * sign)
       segments.push({
         nodeId: node.id,
         sequence: access.sequence,

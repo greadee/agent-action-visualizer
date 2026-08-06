@@ -1,6 +1,6 @@
-import { Vector3 } from 'three'
 import { accessAnchor } from './accessPoints'
 import type { GraphNode, TrailAccess, Vec3 } from '../graph/types'
+import { addScaled, normalize, subtract } from '../rendering/vectorMath'
 
 export type DurationScale = 'linear' | 'log'
 
@@ -65,9 +65,7 @@ export function durationExtrusionLength(
 }
 
 function outwardFromAnchor(anchor: Vec3, node: GraphNode): Vec3 {
-  const offset = new Vector3(...anchor).sub(new Vector3(...node.position))
-  if (offset.lengthSq() === 0) return [0, 0, 1]
-  return offset.normalize().toArray() as unknown as Vec3
+  return normalize(subtract(anchor, node.position))
 }
 
 export function buildTimeExtrusions(
@@ -107,9 +105,7 @@ export function buildTimeExtrusions(
       MAX_DURATION_EXTRUSION,
       Math.max(MIN_DURATION_EXTRUSION, unclampedLength),
     )
-    const end = new Vector3(...start)
-      .addScaledVector(new Vector3(...outward), length)
-      .toArray() as unknown as Vec3
+    const end = addScaled(start, outward, length)
     return {
       nodeId: node.id,
       sequence: access.sequence,

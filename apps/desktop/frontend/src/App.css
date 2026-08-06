@@ -475,6 +475,54 @@ button:disabled {
   position: relative;
   min-height: 0;
 }
+.scene-loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #7890a7;
+  background:
+    radial-gradient(circle at 50% 45%, #102337 0, #070a12 48%), #070a12;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.render-diagnostics {
+  position: absolute;
+  top: 18px;
+  left: 18px;
+  display: grid;
+  grid-template-columns: repeat(2, auto);
+  gap: 4px 12px;
+  width: max-content;
+  border: 1px solid #2d5260;
+  border-radius: 9px;
+  padding: 10px 12px;
+  color: #a8bac8;
+  background: #071019e8;
+  font-size: 9px;
+  line-height: 1.35;
+  pointer-events: none;
+}
+.render-diagnostics strong {
+  grid-column: 1 / -1;
+  color: #6fe4cc;
+  font-size: 9px;
+  letter-spacing: 0.13em;
+}
+.render-lod-status {
+  position: absolute;
+  left: 18px;
+  bottom: 18px;
+  margin: 0;
+  border: 1px solid #624d72;
+  border-radius: 999px;
+  padding: 6px 10px;
+  color: #d8c7e5;
+  background: #130d1be8;
+  font-size: 9px;
+  pointer-events: none;
+}
 .recenter {
   position: absolute;
   top: 18px;

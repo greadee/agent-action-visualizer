@@ -1,6 +1,13 @@
 import { SegmentedControl } from '@prool-ui/react'
-import { Canvas } from '@react-three/fiber'
-import { startTransition, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  lazy,
+  startTransition,
+  Suspense,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import './App.css'
 import type { ActivityMode } from './activity/extrusions'
 import {
@@ -31,12 +38,12 @@ import type { LiveFocusState, ReplaySession, TrailAccess } from './graph/types'
 import { NodeInspector } from './inspector/NodeInspector'
 import { formatDuration, formatWorkDelta } from './inspector/format'
 import { GraphLegend } from './scene/GraphLegend'
-import { GraphScene } from './scene/GraphScene'
 import { selectTrailAccesses } from './scene/trail'
 import { adjacentAccessCursor, formatReplayTime } from './replay/timeline'
 
 const reviewEpoch = Date.parse('2026-07-21T18:00:00Z')
 const filterPreferenceKey = 'aav.visualizationFilters.v1'
+const SceneViewport = lazy(() => import('./scene/SceneViewport'))
 
 function App() {
   const [selectedId, setSelectedId] = useState('root')
@@ -48,6 +55,7 @@ function App() {
   const [showActivity, setShowActivity] = useState(true)
   const [showAccessPoints, setShowAccessPoints] = useState(true)
   const [showTrail, setShowTrail] = useState(true)
+  const [showDiagnostics, setShowDiagnostics] = useState(false)
   const [recentTrailAccesses, setRecentTrailAccesses] = useState(12)
   const [completeTrail, setCompleteTrail] = useState(false)
   const [hideTrailRepeats, setHideTrailRepeats] = useState(true)
@@ -935,6 +943,15 @@ function App() {
             />
             Access points
           </label>
+          <label className="toggle">
+            <input
+              aria-label="Render diagnostics"
+              type="checkbox"
+              checked={showDiagnostics}
+              onChange={(event) => setShowDiagnostics(event.target.checked)}
+            />
+            Render diagnostics
+          </label>
           <div className="rule" />
           <p className="panel__label">SESSION TRAIL</p>
           <label className="toggle">
@@ -1000,17 +1017,24 @@ function App() {
           />
         </aside>
         <div className="viewport">
-          <Canvas camera={{ position: [0, 0, 28], fov: 48 }}>
-            <color attach="background" args={['#070a12']} />
-            <GraphScene
+          <Suspense
+            fallback={
+              <div className="scene-loading" role="status">
+                Loading local renderer
+              </div>
+            }
+          >
+            <SceneViewport
               graph={visibleGraph}
               selectedId={selectedId}
+              selectedAccessSequence={selectedAccess?.sequence}
               recenterKey={recenterKey}
               showLabels={showLabels}
               showStructure={showStructure}
               showActivity={showActivity}
               showAccessPoints={showAccessPoints}
               showTrail={showTrail}
+              showDiagnostics={showDiagnostics}
               recentTrailAccesses={recentTrailAccesses}
               completeTrail={completeTrail}
               hideTrailRepeats={hideTrailRepeats}
@@ -1027,7 +1051,7 @@ function App() {
                 if (autoFollow && !livePaused) setManualHold(true)
               }}
             />
-          </Canvas>
+          </Suspense>
           <button
             className="recenter"
             type="button"

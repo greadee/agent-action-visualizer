@@ -1,10 +1,12 @@
 import { Html } from '@react-three/drei'
-import { useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { memo, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Color, InstancedMesh, Matrix4, Vector3 } from 'three'
 import { buildWorkGeometry } from '../activity/workExtrusions'
 import type { DurationScale } from '../activity/timeExtrusions'
 import type { GraphNode, TrailAccess, Vec3 } from '../graph/types'
 import { formatWorkDelta } from '../inspector/format'
+import { useLineGeometry } from '../rendering/lineGeometry'
+import { markerGeometrySegments } from '../rendering/lod'
 
 const additionColor = '#5ce0c4'
 const deletionColor = '#ff7894'
@@ -23,7 +25,7 @@ interface HoveredWork {
   clamped: boolean
 }
 
-export function WorkExtrusions({
+export const WorkExtrusions = memo(function WorkExtrusions({
   nodes,
   trail,
   scale = 'log',
@@ -65,6 +67,8 @@ export function WorkExtrusions({
       ),
     [geometry.segments],
   )
+  const lineGeometry = useLineGeometry(positions, colors)
+  const sphereSegments = markerGeometrySegments(geometry.segments.length)
 
   useLayoutEffect(() => {
     const matrix = new Matrix4()
@@ -108,13 +112,7 @@ export function WorkExtrusions({
       {geometry.segments.length > 0 && (
         <>
           <lineSegments renderOrder={3}>
-            <bufferGeometry>
-              <bufferAttribute
-                attach="attributes-position"
-                args={[positions, 3]}
-              />
-              <bufferAttribute attach="attributes-color" args={[colors, 3]} />
-            </bufferGeometry>
+            <primitive object={lineGeometry} attach="geometry" />
             <lineBasicMaterial vertexColors depthTest={false} />
           </lineSegments>
           <instancedMesh
@@ -144,7 +142,7 @@ export function WorkExtrusions({
               if (segment) onInspect(segment.access)
             }}
           >
-            <sphereGeometry args={[0.11, 10, 10]} />
+            <sphereGeometry args={[0.11, sphereSegments, sphereSegments]} />
             <meshBasicMaterial vertexColors depthTest={false} />
           </instancedMesh>
         </>
@@ -209,4 +207,4 @@ export function WorkExtrusions({
       )}
     </>
   )
-}
+})

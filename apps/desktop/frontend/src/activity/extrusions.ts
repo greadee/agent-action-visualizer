@@ -1,5 +1,5 @@
-import { Vector3 } from 'three'
 import type { GraphNode, NodeActivity, Vec3 } from '../graph/types'
+import { addScaled, normalize } from '../rendering/vectorMath'
 
 export type ActivityMode = 'time' | 'work'
 
@@ -38,14 +38,14 @@ export function buildExtrusions(
     const value = activityValue(node.activity, mode)
     if (value === 0) return []
     const length = 0.45 + (3.55 * Math.log1p(value)) / Math.log1p(maximum)
-    const start = new Vector3(...node.position)
-    const radial = start.clone().normalize()
-    const end = start.clone().addScaledVector(radial, length)
+    const start = node.position
+    const radial = normalize(start)
+    const end = addScaled(start, radial, length)
     return [
       {
         nodeId: node.id,
-        start: start.toArray() as unknown as Vec3,
-        end: end.toArray() as unknown as Vec3,
+        start,
+        end,
         value,
         length,
       },
