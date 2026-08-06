@@ -27,6 +27,8 @@ describe('App', () => {
     expect(
       screen.getByRole('button', { name: 'Add work review batch' }),
     ).toBeTruthy()
+    expect(screen.getByText('SESSION ANALYTICS')).toBeTruthy()
+    expect(screen.getByText('Current session view')).toBeTruthy()
     expect(screen.getByText('Absent — static scan')).toBeTruthy()
   })
 
@@ -62,6 +64,10 @@ describe('App', () => {
     )
     await waitFor(() => expectAccessCount('7 of 7 accesses'))
     fireEvent.click(screen.getByRole('button', { name: 'Work' }))
+    expect(screen.getByText('+10043 / -5021')).toBeTruthy()
+    expect(
+      screen.getByText(/1 unknown, 1 binary, 0 unsupported, 0 pending work/),
+    ).toBeTruthy()
     expect(
       screen.getByText('outward = additions · inward = deletions'),
     ).toBeTruthy()
@@ -72,7 +78,7 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Next review event' }))
     await waitFor(() =>
       expect(
-        screen.getByText('src/App.tsx', { selector: 'strong' }),
+        screen.getAllByText('src/App.tsx', { selector: 'strong' }).length,
       ).toBeTruthy(),
     )
     expect(screen.getByText('patch · exact')).toBeTruthy()
@@ -81,13 +87,15 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Next review event' }))
     await waitFor(() =>
       expect(
-        screen.getByText('src/App.tsx', { selector: 'strong' }),
+        screen.getAllByText('src/App.tsx', { selector: 'strong' }).length,
       ).toBeTruthy(),
     )
     fireEvent.click(screen.getByRole('button', { name: 'Return live' }))
     await waitFor(() =>
       expect(
-        screen.getByText('src/scene/GraphScene.tsx', { selector: 'strong' }),
+        screen.getAllByText('src/scene/GraphScene.tsx', {
+          selector: 'strong',
+        }).length,
       ).toBeTruthy(),
     )
     expect(screen.getByText('read · exact')).toBeTruthy()
@@ -157,6 +165,8 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: 'exact' }))
     fireEvent.click(screen.getByRole('checkbox', { name: 'unknown' }))
     expectAccessCount('1 of 2 accesses')
+    expect(screen.getByText(/Filtered session view/)).toBeTruthy()
+    expect(screen.getAllByText('+0 / -0').length).toBeGreaterThan(0)
     expect(screen.getByText('Filtered from current view')).toBeTruthy()
 
     fireEvent.change(screen.getByRole('searchbox', { name: 'SEARCH' }), {

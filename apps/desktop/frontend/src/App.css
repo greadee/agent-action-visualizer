@@ -259,6 +259,83 @@ select {
   color: #6fcab9;
   font-size: 10px;
 }
+.analytics-panel {
+  display: grid;
+  gap: 10px;
+}
+.analytics-kpis {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+}
+.analytics-card {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  border: 1px solid #233345;
+  border-radius: 8px;
+  padding: 8px;
+  background: #0d1723;
+}
+.analytics-card span,
+.analytics-list p,
+.analytics-list > span,
+.analytics-note,
+.analytics-ops {
+  color: #7890a7;
+  font-size: 10px;
+}
+.analytics-card strong {
+  overflow: hidden;
+  color: #e4f1f0;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.analytics-note {
+  margin: 0;
+  line-height: 1.45;
+}
+.analytics-ops {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.analytics-ops span {
+  border: 1px solid #243446;
+  border-radius: 999px;
+  padding: 3px 6px;
+  background: #0d1723;
+}
+.analytics-list {
+  display: grid;
+  gap: 5px;
+}
+.analytics-list p {
+  margin: 2px 0 0;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.analytics-list > span {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+.analytics-list strong {
+  overflow: hidden;
+  color: #c8d8df;
+  font-size: 11px;
+  font-weight: 520;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.analytics-list em {
+  color: #6fcab9;
+  font-size: 10px;
+  font-style: normal;
+}
 button:disabled {
   cursor: not-allowed;
   opacity: 0.45;

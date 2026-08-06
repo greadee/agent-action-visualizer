@@ -4,6 +4,12 @@ import { startTransition, useEffect, useMemo, useRef, useState } from 'react'
 import './App.css'
 import type { ActivityMode } from './activity/extrusions'
 import {
+  buildSessionAnalytics,
+  type AnalyticsBucket,
+  type DirectoryActivity,
+  type AgentActivity,
+} from './analytics/sessionAnalytics'
+import {
   DEFAULT_ACTIVITY_DISPLAY_SETTINGS,
   DURATION_VISUAL_CAPS_MS,
   WORK_VISUAL_CAPS_LINES,
@@ -23,6 +29,7 @@ import {
 import { demoGraph } from './graph/demoGraph'
 import type { LiveFocusState, ReplaySession, TrailAccess } from './graph/types'
 import { NodeInspector } from './inspector/NodeInspector'
+import { formatDuration, formatWorkDelta } from './inspector/format'
 import { GraphLegend } from './scene/GraphLegend'
 import { GraphScene } from './scene/GraphScene'
 import { selectTrailAccesses } from './scene/trail'
@@ -116,6 +123,10 @@ function App() {
       hideConsecutiveRepeats: hideTrailRepeats,
     },
   ).length
+  const analytics = useMemo(
+    () => buildSessionAnalytics(visibleGraph, visibleFocus),
+    [visibleGraph, visibleFocus],
+  )
 
   useEffect(() => {
     if (!selected && visibleGraph.nodes[0])
@@ -545,6 +556,69 @@ function App() {
           {filtersActive && visibleFileCount === 0 && (
             <p className="replay-empty">No files match the current filters.</p>
           )}
+          <div className="rule" />
+          <p className="panel__label">SESSION ANALYTICS</p>
+          <div className="analytics-panel" aria-live="polite">
+            <div className="analytics-kpis">
+              <MetricCard label="Accesses" value={analytics.totalAccesses} />
+              <MetricCard label="Files" value={analytics.uniqueFiles} />
+              <MetricCard
+                label="Time"
+                value={formatDuration(analytics.totalDurationMs)}
+              />
+              <MetricCard
+                label="Work"
+                value={formatWorkDelta(
+                  analytics.linesAdded,
+                  analytics.linesDeleted,
+                )}
+              />
+            </div>
+            <p className="analytics-note">
+              {filtersActive
+                ? 'Filtered session view'
+                : isReplaying
+                  ? 'Replay cursor view'
+                  : 'Current session view'}
+              {analytics.unknownDurationCount > 0
+                ? `; ${analytics.unknownDurationCount} unknown durations`
+                : ''}
+              {analytics.unknownWorkCount +
+                analytics.binaryWorkCount +
+                analytics.unsupportedWorkCount +
+                analytics.pendingWorkCount >
+              0
+                ? `; ${analytics.unknownWorkCount} unknown, ${analytics.binaryWorkCount} binary, ${analytics.unsupportedWorkCount} unsupported, ${analytics.pendingWorkCount} pending work`
+                : ''}
+            </p>
+            <div className="analytics-ops">
+              <span>create {analytics.operationCounts.created}</span>
+              <span>modify {analytics.operationCounts.modified}</span>
+              <span>delete {analytics.operationCounts.deleted}</span>
+              <span>read {analytics.operationCounts.read}</span>
+              <span>other {analytics.operationCounts.other}</span>
+            </div>
+            <AnalyticsList
+              title="Top files"
+              items={analytics.fileActivity.slice(0, 4)}
+            />
+            <DirectoryAnalyticsList
+              title="Directories"
+              items={analytics.directoryActivity.slice(0, 4)}
+            />
+            <AgentAnalyticsList
+              title="Agents"
+              items={analytics.agentActivity.slice(0, 4)}
+            />
+            <AnalyticsList
+              title="Event confidence"
+              items={analytics.confidenceCounts}
+            />
+            <AnalyticsList
+              title="Work confidence"
+              items={analytics.workConfidenceCounts}
+            />
+          </div>
           <div className="rule" />
           <p className="panel__label">LIVE FOCUS</p>
           <div className="focus-readout" aria-live="polite">
@@ -993,6 +1067,88 @@ function App() {
 }
 
 export default App
+
+function MetricCard({
+  label,
+  value,
+}: {
+  label: string
+  value: string | number
+}) {
+  return (
+    <div className="analytics-card">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  )
+}
+
+function AnalyticsList({
+  title,
+  items,
+}: {
+  title: string
+  items: AnalyticsBucket[]
+}) {
+  return (
+    <div className="analytics-list">
+      <p>{title}</p>
+      {items.length === 0 && <span>No observed values</span>}
+      {items.map((item) => (
+        <span key={item.label} title={item.label}>
+          <strong>{item.label}</strong>
+          <em>{item.count}</em>
+        </span>
+      ))}
+    </div>
+  )
+}
+
+function DirectoryAnalyticsList({
+  title,
+  items,
+}: {
+  title: string
+  items: DirectoryActivity[]
+}) {
+  return (
+    <div className="analytics-list">
+      <p>{title}</p>
+      {items.length === 0 && <span>No observed values</span>}
+      {items.map((item) => (
+        <span key={item.label} title={item.label}>
+          <strong>{item.label}</strong>
+          <em>
+            {item.count} / {formatWorkDelta(item.linesAdded, item.linesDeleted)}
+          </em>
+        </span>
+      ))}
+    </div>
+  )
+}
+
+function AgentAnalyticsList({
+  title,
+  items,
+}: {
+  title: string
+  items: AgentActivity[]
+}) {
+  return (
+    <div className="analytics-list">
+      <p>{title}</p>
+      {items.length === 0 && <span>No observed values</span>}
+      {items.map((item) => (
+        <span key={item.label} title={item.label}>
+          <strong>{item.label}</strong>
+          <em>
+            {item.count} / {formatWorkDelta(item.linesAdded, item.linesDeleted)}
+          </em>
+        </span>
+      ))}
+    </div>
+  )
+}
 
 function FilterGroup({
   label,
