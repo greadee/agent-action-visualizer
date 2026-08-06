@@ -455,3 +455,18 @@
 - Known limitations: analytics only reflect records available in the current live or replay trail after filters; subagent activity is reported through available agent identifiers and remains `unknown` when adapters do not provide one; existing Vite bundle-size warning, Three.js `Clock` deprecation warning, and npm audit advisories remain deferred to P9
 - Phase summary: Phase 8 now provides persisted-session replay, deterministic timeline controls, saved visualization filters, filtered search/focus behavior, and confidence-aware deterministic session analytics. Replay/live state separation, exact work/time values, unknown-value handling, and filter-aware calculations are covered by unit tests and browser validation.
 - Next slice: P9-S1 - Rendering / optimize
+
+## P9-S1 - Rendering / optimize
+
+- Phase: 9
+- Slice: P9-S1
+- Feature: Deterministic renderer optimization and instrumentation
+- Action: Optimize and measure
+- Status: complete
+- Files changed: bounded deterministic activity/access-point LOD with active, inspected, recent, aggregate, and scale-defining evidence retention; node, marker, and hover-label detail thresholds; memoized activity renderers; explicitly disposed line buffers; local WebGL diagnostics for CPU/GPU p95, frame cadence, draw calls, primitives, allocations, and optional heap use; lazy renderer loading and production chunk splitting; pure vector math; numerical fixtures; reproducible render-model benchmark; ADR and performance evidence
+- Tests run: fresh `npm ci`; complete root and desktop Go tests/vet with slice-local caches; isolated root rerun and ten consecutive observer timing tests after one load-induced parallel-run miss; Prettier, ESLint, TypeScript, Vitest (50 tests), Vite production build, isolated render-model benchmark, Wails Windows production build, and `git diff --check`
+- Visual or E2E validation: direct in-app browser validation of base, 300-access dense Time, and mixed Work scenes; dense activity visibly bounded at 256 of 300 while exact session records remained available; base/dense scenes held the 165 Hz display cadence; clean final browser run had no errors and only the existing React Three Fiber `THREE.Clock` deprecation warning
+- Benchmark result: Windows/amd64 on AMD Ryzen 5 9600X and NVIDIA GeForce RTX 3080 with Node.js 22.22.3: isolated CPU LOD means were 0.0619 ms for 1,000 activity accesses, 0.6185 ms for 10,000 activity accesses, and 1.5286 ms for 10,000 access points; browser base/dense CPU p95 was 0.10/0.20 ms and GPU p95 was 0.04/0.14 ms; dense draw calls remained 7. Production entry JS fell from 1,150.40 kB (316.85 kB gzip) to 233.30 kB (72.66 kB gzip), with no chunk above 373.73 kB and no bundle-size warning
+- Commit SHA: `a481d05f29feac44de6d42789a489dd906d4c753`
+- Known limitations: the complete 100 through 20,000-node scale campaign, burst/long-session memory analysis, and hardware-dependent degradation gates remain P9-S2; JavaScript heap and GPU timing report unsupported when browser APIs are unavailable; the current React Three Fiber path still emits the upstream `THREE.Clock` deprecation warning; one pre-existing filesystem observer timing test missed an event only while nine heavy checks competed on the host, then passed in isolation and ten consecutive targeted reruns
+- Next slice: P9-S2 - Scale / validate
