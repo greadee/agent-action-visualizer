@@ -1,8 +1,9 @@
 # Rendering performance
 
-This document records the reproducible P9-S1 renderer measurements. It does
-not replace the larger node-count, burst, memory-growth, and long-session
-campaign assigned to P9-S2.
+This document records the reproducible P9-S1 renderer optimization and P9-S2
+scale-validation measurements. Results are specific to the environment below;
+the deterministic fixtures and commands are retained so another machine can
+reproduce the campaign.
 
 ## Environment
 
@@ -26,6 +27,13 @@ Run the deterministic render-model benchmark from
 
 ```powershell
 npm.cmd run benchmark:render
+npm.cmd run benchmark:scale
+```
+
+Run the bounded ingress burst benchmark from the repository root:
+
+```powershell
+go test ./internal/ingest -run '^$' -bench 'BenchmarkQueueBurst$' -benchmem -count=3
 ```
 
 Build and inspect production chunk sizes with:
@@ -40,6 +48,20 @@ window. The panel measures CPU time around the renderer submission, GPU elapsed
 time where timer queries are supported, frame cadence, draw calls, primitives,
 WebGL allocations, and JavaScript heap use. Diagnostics remain local and are
 disabled by default.
+
+Development builds also accept a bounded scale profile. `scale` must be one of
+`100`, `1000`, `5000`, `10000`, or `20000`; `history` is clamped from zero to
+100,000 exact access records. Diagnostics are enabled automatically unless
+`diagnostics=0` is supplied.
+
+```text
+http://127.0.0.1:5173/?scale=5000&history=100000
+```
+
+The **Add 1,000-event burst** development control drives the ordinary browser
+preview bridge one event at a time. The fixtures contain metadata only, are
+deterministic and local, and are removed from production behavior by the Vite
+development guard.
 
 ## Bundle result
 
@@ -102,10 +124,62 @@ browser run produced no errors. React Three Fiber still emits the known
 - Diagnostics do not alter persisted evidence, replay, analytics, adapters, or
   model context.
 
-## Deferred validation
+## Scale campaign
 
-P9-S2 owns the complete 100/1,000/5,000/10,000/20,000-node campaign,
-high-frequency burst tests, sustained memory-growth checks, long-session tests,
-and hardware-dependent graceful-degradation limits. P9-S1 establishes the
-instrumentation and bounded policies needed for that work without claiming
-those scale gates are complete.
+The whole-app CPU benchmark creates the deterministic graph and its fixed-size
+structure buffer. Long-session rows operate on 100,000 exact trail records and
+retain the complete records outside renderer LOD.
+
+| Case | Mean | p99 | Samples |
+| --- | ---: | ---: | ---: |
+| Build 100-node input | 0.0538 ms | 0.1316 ms | 9,305 |
+| Build 1,000-node input | 0.4722 ms | 2.3079 ms | 1,062 |
+| Build 5,000-node input | 2.3819 ms | 4.4672 ms | 210 |
+| Build 10,000-node input | 4.9673 ms | 9.1469 ms | 101 |
+| Build 20,000-node input | 10.6778 ms | 19.9287 ms | 47 |
+| Select 100,000-access detail | 78.3127 ms | 91.5882 ms | 10 |
+| Calculate 100,000-access analytics | 85.3713 ms | 88.6961 ms | 10 |
+
+The saturated 256-event ingress queue processed offers in 1.898 to 1.954
+microseconds per operation with zero benchmark allocations. A deterministic
+100,000-event mixed read/patch test completed in 0.416 seconds, never exceeded
+capacity, and reported overload drops rather than blocking or growing.
+
+Each browser row is a stable one-second sample after initial load. The
+5,000-node row intentionally combines the target interaction scale with the
+maximum 100,000-access long-session fixture.
+
+| Nodes | Accesses | FPS | CPU p95 | GPU p95 | Draws | Triangles | Lines | JS heap |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 100 | 200 | 165.0 | 0.20 ms | 0.16 ms | 7 | 42,176 | 310 | 50.7 MB |
+| 1,000 | 2,000 | 165.0 | 0.10 ms | 2.00 ms | 7 | 315,536 | 1,266 | 52.8 MB |
+| 5,000 | 100,000 | 165.0 | 0.20 ms | 2.14 ms | 7 | 538,416 | 5,266 | 125.2 MB |
+| 10,000 | 20,000 | 164.7 | 0.20 ms | 2.16 ms | 7 | 338,416 | 10,266 | 83.6 MB |
+| 20,000 | 40,000 | 165.0 | 0.20 ms | 2.21 ms | 7 | 538,416 | 20,266 | 97.8 MB |
+
+At 5,000 nodes and 100,000 accesses, Time-to-Work switching and path-search
+result visibility completed in 599 ms and 577 ms respectively, including the
+browser-control round trip; the following stable sample returned to 165 fps.
+The 1,000-event live browser burst became visible in 289 ms and likewise
+returned to 165 fps, seven draw calls, and a 74.6 MB heap sample.
+
+Eight alternating 5,000/20,000-node navigations kept allocations fixed at
+seven geometries and one texture. Heap samples were 59.6, 75.9, 70.4, 95.9,
+59.6, 84.7, 89.8, and 75.8 MB, showing garbage-collection variation rather
+than monotonic growth. Stable frame samples remained between 163.4 and 164.6
+fps during this lifecycle run.
+
+The 20,000-node scene degrades geometrical detail and remains responsive, but
+the unfiltered shell is visually packed. Individual inspection at that scale
+depends on search, filters, focus, and the always-visible selected label rather
+than every node being distinguishable at once.
+
+## Validation boundary
+
+These results validate Windows/Chromium on the listed hardware. They are not a
+cross-platform GPU guarantee, and JavaScript heap/GPU timing remains
+unsupported where the browser omits those APIs. The current renderer maintains
+stable interaction around 5,000 visible nodes on this machine and degrades
+without freezing at 10,000 and 20,000 nodes. P9-S3 owns security hardening;
+P9-S4 owns crash and recovery reliability rather than additional rendering
+scale claims.

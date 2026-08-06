@@ -30,6 +30,9 @@ describe('App', () => {
     expect(
       screen.getByRole('button', { name: 'Add work review batch' }),
     ).toBeTruthy()
+    expect(
+      screen.getByRole('button', { name: 'Add 1,000-event burst' }),
+    ).toBeTruthy()
     expect(screen.getByText('SESSION ANALYTICS')).toBeTruthy()
     expect(screen.getByText('Current session view')).toBeTruthy()
     expect(screen.getByText('Absent — static scan')).toBeTruthy()

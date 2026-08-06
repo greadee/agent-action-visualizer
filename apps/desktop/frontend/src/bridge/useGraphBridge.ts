@@ -36,9 +36,14 @@ declare global {
   }
 }
 
-export function useGraphBridge(fallback: GraphSnapshot) {
+export function useGraphBridge(
+  fallback: GraphSnapshot,
+  fallbackFocus?: LiveFocusState,
+) {
   const [graph, setGraph] = useState(fallback)
-  const [liveFocus, setLiveFocus] = useState<LiveFocusState>()
+  const [liveFocus, setLiveFocus] = useState<LiveFocusState | undefined>(
+    fallbackFocus,
+  )
   const fallbackHistory = useRef<
     Map<string, { event: ActivityEvent; focus: LiveFocusState }[]>
   >(new Map())

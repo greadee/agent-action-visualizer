@@ -18,6 +18,20 @@
   font-weight: 620;
   letter-spacing: -0.02em;
 }
+
+.topbar__status {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.55rem;
+  flex-direction: column;
+}
+
+.scale-profile {
+  color: #80e8d0;
+  font-size: 0.66rem;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
 .eyebrow,
 .panel__label {
   color: #7890a7;

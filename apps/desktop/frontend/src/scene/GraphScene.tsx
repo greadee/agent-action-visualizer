@@ -14,6 +14,7 @@ import {
   selectActivityAccesses,
   shouldShowHoverLabel,
 } from '../rendering/lod'
+import { buildStructurePositions } from '../rendering/structurePositions'
 import { focusRoleForNode } from './focusState'
 import { AccessPoints } from './AccessPoints'
 import { RenderDiagnostics } from './RenderDiagnostics'
@@ -141,13 +142,7 @@ export function GraphScene({
     }
   }, [focusState, graph, olderTrailNodeIds, selectedId])
   const positions = useMemo(() => {
-    const byId = new Map(graph.nodes.map((n) => [n.id, n.position]))
-    return new Float32Array(
-      graph.edges.flatMap((e) => [
-        ...(byId.get(e.source) ?? [0, 0, 0]),
-        ...(byId.get(e.target) ?? [0, 0, 0]),
-      ]),
-    )
+    return buildStructurePositions(graph.nodes, graph.edges)
   }, [graph])
   const structureGeometry = useLineGeometry(positions)
   const activitySelection = useMemo(

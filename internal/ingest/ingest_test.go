@@ -2,6 +2,7 @@ package ingest
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 	"testing"
 	"time"
@@ -69,11 +70,45 @@ func TestCollectorProcessesAsynchronously(t *testing.T) {
 	}
 }
 
+func TestQueueBurstRemainsBounded(t *testing.T) {
+	const capacity = 256
+	q := NewQueue(capacity)
+	for index := 0; index < 100_000; index++ {
+		kind := protocol.EventFileRead
+		if index%1_000 == 0 {
+			kind = protocol.EventFilePatched
+		}
+		q.Offer(event(fmt.Sprintf("burst-%d", index), kind, fmt.Sprintf("src/file-%d.go", index%2_048)))
+		if q.Len() > capacity {
+			t.Fatalf("queue exceeded capacity: %d", q.Len())
+		}
+	}
+	if q.Len() != capacity {
+		t.Fatalf("unexpected final queue length: %d", q.Len())
+	}
+	if q.Stats().Dropped == 0 {
+		t.Fatal("overload did not report dropped events")
+	}
+}
+
 func BenchmarkQueueOffer(b *testing.B) {
 	q := NewQueue(1024)
 	e := event("bench", protocol.EventFileRead, "a.go")
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		q.Offer(e)
+	}
+}
+
+func BenchmarkQueueBurst(b *testing.B) {
+	events := make([]protocol.Event, 4_096)
+	for index := range events {
+		events[index] = event(fmt.Sprintf("burst-%d", index), protocol.EventFileRead, fmt.Sprintf("src/file-%d.go", index))
+	}
+	q := NewQueue(256)
+	b.ReportAllocs()
+	b.ResetTimer()
+	for index := 0; index < b.N; index++ {
+		q.Offer(events[index%len(events)])
 	}
 }

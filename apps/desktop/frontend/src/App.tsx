@@ -37,6 +37,7 @@ import { demoGraph } from './graph/demoGraph'
 import type { LiveFocusState, ReplaySession, TrailAccess } from './graph/types'
 import { NodeInspector } from './inspector/NodeInspector'
 import { formatDuration, formatWorkDelta } from './inspector/format'
+import { scaleFixtureFromSearch } from './rendering/scaleFixture'
 import { GraphLegend } from './scene/GraphLegend'
 import { selectTrailAccesses } from './scene/trail'
 import { adjacentAccessCursor, formatReplayTime } from './replay/timeline'
@@ -46,6 +47,10 @@ const filterPreferenceKey = 'aav.visualizationFilters.v1'
 const SceneViewport = lazy(() => import('./scene/SceneViewport'))
 
 function App() {
+  const scaleFixture = useMemo(
+    () => scaleFixtureFromSearch(window.location.search, import.meta.env.DEV),
+    [],
+  )
   const [selectedId, setSelectedId] = useState('root')
   const [cameraFocusId, setCameraFocusId] = useState('root')
   const [recenterKey, setRecenterKey] = useState(0)
@@ -55,7 +60,9 @@ function App() {
   const [showActivity, setShowActivity] = useState(true)
   const [showAccessPoints, setShowAccessPoints] = useState(true)
   const [showTrail, setShowTrail] = useState(true)
-  const [showDiagnostics, setShowDiagnostics] = useState(false)
+  const [showDiagnostics, setShowDiagnostics] = useState(
+    scaleFixture?.diagnostics ?? false,
+  )
   const [recentTrailAccesses, setRecentTrailAccesses] = useState(12)
   const [completeTrail, setCompleteTrail] = useState(false)
   const [hideTrailRepeats, setHideTrailRepeats] = useState(true)
@@ -65,7 +72,9 @@ function App() {
   )
   const [projectPath, setProjectPath] = useState('')
   const [projectError, setProjectError] = useState('')
-  const [displayedFocus, setDisplayedFocus] = useState<LiveFocusState>()
+  const [displayedFocus, setDisplayedFocus] = useState<
+    LiveFocusState | undefined
+  >(scaleFixture?.focus)
   const [selectedAccess, setSelectedAccess] = useState<TrailAccess>()
   const [autoFollow, setAutoFollow] = useState(true)
   const [livePaused, setLivePaused] = useState(false)
@@ -91,7 +100,7 @@ function App() {
     publishActivityEvent,
     listPersistedSessions,
     replayPersistedSession,
-  } = useGraphBridge(demoGraph)
+  } = useGraphBridge(scaleFixture?.graph ?? demoGraph, scaleFixture?.focus)
   const isReplaying = Boolean(replaySession)
   const filterClockMs = replaySession?.cursor_at
     ? Date.parse(replaySession.cursor_at)
@@ -306,17 +315,25 @@ function App() {
   }
 
   async function addDenseReviewBatch() {
+    await addReviewBurst(60, 'p5-review-dense')
+  }
+
+  async function addScaleReviewBurst() {
+    await addReviewBurst(1_000, 'p9-scale-burst')
+  }
+
+  async function addReviewBurst(count: number, eventPrefix: string) {
     const candidates = graph.nodes.filter(
       (node) => node.kind !== 'root' && node.kind !== 'directory',
     )
     if (candidates.length < 2) return
     await ensureReviewSession()
     const start = reviewStep.current
-    for (let offset = 0; offset < 60; offset += 1) {
+    for (let offset = 0; offset < count; offset += 1) {
       const active = candidates[offset % 2]!
       await publishActivityEvent({
         schema_version: '1.0',
-        event_id: `p5-review-dense-${start + offset}`,
+        event_id: `${eventPrefix}-${start + offset}`,
         session_id: 'p4-review',
         source_type: 'synthetic',
         source_confidence: 'exact',
@@ -328,7 +345,7 @@ function App() {
         path: active.path,
       })
     }
-    reviewStep.current += 60
+    reviewStep.current += count
   }
 
   async function addDurationReviewBatch() {
@@ -418,8 +435,16 @@ function App() {
           <span className="eyebrow">LOCAL OBSERVABILITY</span>
           <h1>Agent Action Visualizer</h1>
         </div>
-        <div className="connection" aria-label="Collector status">
-          <span className="connection__dot" /> Collector ready
+        <div className="topbar__status">
+          {scaleFixture && (
+            <span className="scale-profile" aria-label="Scale fixture">
+              SCALE {scaleFixture.nodeCount.toLocaleString()} NODES /{' '}
+              {scaleFixture.accessCount.toLocaleString()} ACCESSES
+            </span>
+          )}
+          <div className="connection" aria-label="Collector status">
+            <span className="connection__dot" /> Collector ready
+          </div>
         </div>
       </header>
       <section className="workspace" aria-label="Project graph workspace">
@@ -701,6 +726,12 @@ function App() {
                   onClick={() => void addDenseReviewBatch()}
                 >
                   Add dense review batch
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void addScaleReviewBurst()}
+                >
+                  Add 1,000-event burst
                 </button>
                 <button
                   type="button"

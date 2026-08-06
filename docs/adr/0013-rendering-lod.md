@@ -26,6 +26,14 @@ triangles, lines, geometry/texture allocations, CPU submission p95, frame rate,
 GPU timer-query p95 where supported, and JavaScript heap use where exposed by
 the runtime. Diagnostics never leave the renderer or enter agent context.
 
+P9-S2 fixes the reproducible scale campaign at 100, 1,000, 5,000, 10,000,
+and 20,000 nodes, with history fixtures bounded at 100,000 exact accesses.
+Development-only URL profiles feed the normal graph/focus inputs and the normal
+browser preview bridge; production behavior does not synthesize fixture data.
+Structure-edge positions are written directly into one fixed-size typed buffer
+to avoid temporary nested arrays that otherwise amplify peak allocation at
+large node counts.
+
 ## Alternatives
 
 One React component and mesh per item is simpler but scales poorly in draw calls and reconciliation.
@@ -36,6 +44,9 @@ Geometry updates require explicit buffer lifecycle and numerical tests.
 Inspected dense-history evidence is promoted into the bounded detail set, while
 the complete exact record remains available to replay, analytics, and the
 inspector. WebGL line buffers are disposed whenever normalized input changes.
+At 20,000 unfiltered nodes, the shell is deliberately treated as an overview;
+search, filtering, focus, and the selected label provide individual
+inspectability instead of retaining expensive per-node labels or geometry.
 
 ## Evidence
 
