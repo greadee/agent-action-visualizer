@@ -11,7 +11,7 @@ const severities = new Map([
 const thresholdName = process.argv[2] ?? 'high'
 const threshold = severities.get(thresholdName)
 if (threshold === undefined) {
-  console.error(`unsupported npm audit threshold: ${thresholdName}`)
+  process.stderr.write(`unsupported npm audit threshold: ${thresholdName}\n`)
   process.exit(2)
 }
 
@@ -60,13 +60,17 @@ for (const finding of findings) {
 }
 
 const counts = report.metadata?.vulnerabilities ?? {}
-console.log(
+write(
   `npm audit: ${counts.total ?? 0} total, ${counts.high ?? 0} high, ${counts.critical ?? 0} critical`,
 )
 process.exit(findings.length === 0 ? 0 : 1)
 
 function annotation(level, title, message) {
-  console.log(`::${level} title=${escape(title)}::${escape(message)}`)
+  write(`::${level} title=${escape(title)}::${escape(message)}`)
+}
+
+function write(message) {
+  process.stdout.write(`${message}\n`)
 }
 
 function escape(value) {
