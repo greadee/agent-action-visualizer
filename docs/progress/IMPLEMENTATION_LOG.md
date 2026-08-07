@@ -485,3 +485,18 @@
 - Commit SHA: `88a105bd73989da8b9befff80762d0e1ffb2a7b4`
 - Known limitations: the 20,000-node unfiltered shell is visually packed and individual inspection relies on search, filters, focus, and the selected label; browser performance is validated only on the listed Windows/Chromium hardware; GPU timing and JavaScript heap remain unavailable in runtimes that do not expose them; the upstream React Three Fiber `THREE.Clock` deprecation warning remains; security hardening is deferred to P9-S3 and crash/recovery reliability to P9-S4
 - Next slice: P9-S3 - Security / harden
+
+## P9-S3 - Security / harden
+
+- Phase: 9
+- Slice: P9-S3
+- Feature: Local trust-boundary, ingress, retention, installer, and dependency hardening
+- Action: Harden and audit
+- Status: complete
+- Files changed: schema-aligned string/numeric/metadata bounds; atomic malformed-batch rejection tests; owner-only Unix socket verification and documented Windows DACL review; primary/secondary lexical and symlink containment; scanner non-follow coverage; command-label normalization and secret redaction; ingress and SQLite metadata minimization; source-content retention regression coverage; installer managed-symlink refusal; threat model, privacy/protocol/architecture reconciliation; Go checksum and npm severity CI gates; and weekly Go/npm/Actions dependency monitoring
+- Tests run: fresh `npm ci`; complete root and desktop Go tests/vet with slice-local caches; ten repeated protocol, IPC, ingress, store, installer, and wrapper security suites; malformed, zero-length, truncated, wrong-version, oversized, partially invalid, traversal, redaction, configuration restoration, disconnected collector, and output/exit-preservation coverage; Linux/amd64 IPC test cross-compilation; both `go mod verify` checks; frontend Prettier, ESLint, TypeScript, Vitest (58 tests), Vite production build, Wails Windows production build, schema JSON parse, offline npm audit, tracked-secret scan, and `git diff --check`
+- Visual or E2E validation: no renderer behavior changed; process-level wrapper/hook and installer tests confirmed failure-open behavior, exact stdout/stderr/exit and configuration preservation, while SQLite retrieval confirmed an injected source/secret marker was absent and deterministic replay metadata survived
+- Benchmark result: not applicable; adapter deadlines, bounded queues, IPC frame/batch caps, and asynchronous observation behavior are unchanged and remain covered by prior measured slices and repeated failure-open tests
+- Commit SHA: `49c76def0bf68d55ca0f90602c2fa47bb5eeef79`
+- Known limitations: native IPC authenticates through OS account ACLs without an application token, so same-user processes remain trusted; symlink replacement has the normal check/use race but event paths are never used to write repository contents; this Windows account lacks symlink privilege, so symlink execution tests skipped locally while their Linux test targets compiled and execute in CI; `npm audit --offline --json` reported zero cached advisories across 276 dependencies, but a network-refreshed audit and `govulncheck` were unavailable locally and must be refreshed in CI/release validation; GitHub Action tags remain an upstream supply-chain trust dependency monitored by Dependabot
+- Next slice: P9-S4 - Reliability / harden
