@@ -48,6 +48,22 @@ func TestEditOutranksReadAtSameTimestamp(t *testing.T) {
 	}
 }
 
+func TestLateEventDoesNotRollFocusBackward(t *testing.T) {
+	base := time.Unix(1_000, 0)
+	engine := NewEngine(time.Minute)
+	start(t, engine, "s", base)
+	if _, err := engine.Apply(ev("s", protocol.EventFilePatched, "current.go", base.Add(2*time.Second), protocol.ConfidenceExact)); err != nil {
+		t.Fatal(err)
+	}
+	state, err := engine.Apply(ev("s", protocol.EventFileRead, "late.go", base.Add(time.Second), protocol.ConfidenceExact))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state.ActivePath != "current.go" || len(state.Intervals) != 1 || state.Intervals[0].EndedAt != nil {
+		t.Fatalf("late delivery changed focus: %+v", state)
+	}
+}
+
 func TestRenamePreservesActiveIdentity(t *testing.T) {
 	base := time.Unix(1000, 0)
 	engine := NewEngine(time.Minute)

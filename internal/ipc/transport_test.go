@@ -45,6 +45,40 @@ func TestLocalRoundTripAndDisconnect(t *testing.T) {
 	}
 }
 
+func TestClientReconnectsAfterCollectorRestart(t *testing.T) {
+	endpoint := testEndpoint(t.Name())
+	client := NewClient(endpoint)
+	event := validEvent()
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	if err := client.Send(ctx, []protocol.Event{event}); err == nil {
+		cancel()
+		t.Fatal("disconnected send unexpectedly succeeded")
+	}
+	cancel()
+	received := make(chan string, 1)
+	server := NewServer(endpoint, func(event protocol.Event) bool {
+		received <- event.EventID
+		return true
+	})
+	if err := server.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer server.Close()
+	ctx, cancel = context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	if err := client.Send(ctx, []protocol.Event{event}); err != nil {
+		t.Fatalf("send after restart failed: %v", err)
+	}
+	select {
+	case id := <-received:
+		if id != event.EventID {
+			t.Fatalf("event id = %q", id)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("reconnected event was not received")
+	}
+}
+
 func TestServerRejectsOversizedFrame(t *testing.T) {
 	endpoint := testEndpoint(t.Name())
 	server := NewServer(endpoint, func(protocol.Event) bool { t.Fatal("oversized frame was submitted"); return false })

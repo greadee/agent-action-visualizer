@@ -40,6 +40,9 @@ type App struct {
 	journalQueue    chan journalRecord
 	journalDone     chan struct{}
 	journalStatus   string
+	recoveryStatus  string
+	currentFocus    liveFocusDTO
+	shutdownOnce    sync.Once
 }
 
 type journalRecord struct {
@@ -73,13 +76,15 @@ func (a *App) startup(ctx context.Context) {
 }
 
 func (a *App) shutdown(context.Context) {
-	if a.ipc != nil {
-		a.ipc.Close()
-	}
-	a.events.Stop()
-	a.diffs.Close()
-	<-a.diffDone
-	a.stopJournal()
+	a.shutdownOnce.Do(func() {
+		if a.ipc != nil {
+			a.ipc.Close()
+		}
+		a.events.Stop()
+		a.diffs.Close()
+		<-a.diffDone
+		a.stopJournal()
+	})
 }
 
 // Health reports the embedded collector shell state without network access.
@@ -91,6 +96,7 @@ func (a *App) Health() map[string]string {
 		"status":      "ready",
 		"collector":   a.collectorStatus,
 		"persistence": a.journalStatus,
+		"recovery":    a.recoveryStatus,
 	}
 }
 
@@ -108,9 +114,24 @@ func (a *App) startJournal() {
 }
 
 func (a *App) startJournalAt(path string) {
-	journal, err := store.Open(path)
+	now := time.Now().UTC()
+	journal, recovery, err := store.OpenRecovering(path, now)
 	if err != nil {
+		a.mu.Lock()
 		a.journalStatus = "unavailable"
+		a.recoveryStatus = recovery.Code
+		a.mu.Unlock()
+		return
+	}
+	recoveryContext, cancelRecovery := context.WithTimeout(context.Background(), 2*time.Second)
+	recoveredSessions, err := journal.RecoverActiveSessions(recoveryContext, now)
+	cancelRecovery()
+	if err != nil {
+		_ = journal.Close()
+		a.mu.Lock()
+		a.journalStatus = "unavailable"
+		a.recoveryStatus = "session_recovery_failed"
+		a.mu.Unlock()
 		return
 	}
 	a.mu.Lock()
@@ -121,18 +142,33 @@ func (a *App) startJournalAt(path string) {
 	}
 	a.journal, a.journalQueue, a.journalDone = journal, make(chan journalRecord, 256), make(chan struct{})
 	a.journalStatus = "ready"
+	a.recoveryStatus = recovery.Code
+	if recoveredSessions > 0 && recovery.Code == "none" {
+		a.recoveryStatus = "stale_sessions_closed"
+	}
 	queue, done := a.journalQueue, a.journalDone
 	a.mu.Unlock()
 	go func() {
 		defer close(done)
 		for record := range queue {
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+			var writeErr error
 			if record.projectID != "" {
-				_ = journal.EnsureProject(ctx, record.projectID, record.projectID)
+				writeErr = journal.EnsureProject(ctx, record.projectID, record.projectID)
 			}
-			_ = journal.SaveEvent(ctx, record.event)
-			_ = journal.SaveSession(ctx, record.state, record.projectID)
+			if writeErr == nil {
+				writeErr = journal.SaveEvent(ctx, record.event)
+			}
+			if writeErr == nil {
+				writeErr = journal.SaveSession(ctx, record.state, record.projectID)
+			}
 			cancel()
+			if writeErr != nil {
+				a.mu.Lock()
+				a.journalStatus = "degraded"
+				a.recoveryStatus = "journal_write_failed"
+				a.mu.Unlock()
+			}
 		}
 	}()
 }
@@ -246,6 +282,11 @@ type replaySessionDTO struct {
 	Timeline   []replayTimelineDTO `json:"timeline"`
 }
 
+type resyncDTO struct {
+	Graph graphSnapshotDTO `json:"graph"`
+	Focus *liveFocusDTO    `json:"focus,omitempty"`
+}
+
 type trailAccessDTO struct {
 	Sequence       int                 `json:"sequence"`
 	NodeID         string              `json:"node_id,omitempty"`
@@ -275,6 +316,7 @@ func (a *App) LoadProject(root string) (graphSnapshotDTO, error) {
 	a.root = scanned.Root
 	a.identity = graph.NewIdentityRegistry(scanned.Root, runtime.GOOS == "windows")
 	a.focus = session.NewEngine(2 * time.Minute)
+	a.currentFocus = liveFocusDTO{}
 	enriched, err := activity.Enrich(context.Background(), scanned.Root, scanned.Nodes)
 	if err != nil {
 		return graphSnapshotDTO{}, err
@@ -318,6 +360,7 @@ func (a *App) PublishActivityEvent(event protocol.Event) (liveFocusDTO, error) {
 	state = a.submitDiff(normalized, state)
 	a.queueJournal(normalized, state)
 	result := a.liveFocusDTO(state)
+	a.currentFocus = result
 	if a.ctx != nil {
 		wailsruntime.EventsEmit(a.ctx, "aav:focus", result)
 	}
@@ -381,7 +424,10 @@ func (a *App) consumeDiffResults() {
 			result.Status, result.Source, result.Confidence,
 		)
 		if err == nil && a.ctx != nil {
-			wailsruntime.EventsEmit(a.ctx, "aav:focus", a.liveFocusDTO(state))
+			a.currentFocus = a.liveFocusDTO(state)
+			wailsruntime.EventsEmit(a.ctx, "aav:focus", a.currentFocus)
+		} else if err == nil {
+			a.currentFocus = a.liveFocusDTO(state)
 		}
 		if err == nil {
 			event := protocol.Event{SchemaVersion: protocol.SchemaVersion, EventID: "diff:" + result.Key, SessionID: result.SessionID, SourceType: protocol.SourceGit, SourceConfidence: result.Confidence, EventType: protocol.EventDiffCalculated, Timestamp: time.Now().UTC(), Status: string(result.Status), Operation: string(result.Source), LinesAdded: result.LinesAdded, LinesDeleted: result.LinesDeleted, Metadata: map[string]interface{}{"access_sequence": result.Sequence}}
@@ -389,6 +435,19 @@ func (a *App) consumeDiffResults() {
 		}
 		a.mu.Unlock()
 	}
+}
+
+// Resync returns one authoritative renderer view after a frontend reload or
+// bridge reconnect. It contains normalized metadata only.
+func (a *App) Resync() resyncDTO {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	result := resyncDTO{Graph: snapshotDTO(a.snapshot)}
+	if a.currentFocus.SessionID != "" {
+		focus := a.currentFocus
+		result.Focus = &focus
+	}
+	return result
 }
 
 // ListPersistedSessions exposes current-project session metadata only.

@@ -67,6 +67,30 @@ func TestReconstructSupportsEmptyAndBoundaryCursors(t *testing.T) {
 	}
 }
 
+func TestReconstructCanonicalizesOutOfOrderAndDuplicateEvents(t *testing.T) {
+	base := time.Unix(4_000, 0).UTC()
+	start := event("start", protocol.EventSessionStarted, "", base)
+	first := event("first", protocol.EventFileRead, "a.go", base.Add(time.Second))
+	second := event("second", protocol.EventFilePatched, "b.go", base.Add(2*time.Second))
+	stop := event("stop", protocol.EventSessionStopped, "", base.Add(3*time.Second))
+	snapshot, err := Reconstruct([]protocol.Event{stop, second, first, second, start}, 99, time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if snapshot.EventCount != 4 || snapshot.Cursor != 3 || snapshot.State.StoppedAt == nil || len(snapshot.State.Intervals) != 2 {
+		t.Fatalf("snapshot = %#v", snapshot)
+	}
+	if snapshot.State.Intervals[0].Path != "a.go" || snapshot.State.Intervals[0].Duration != time.Second || snapshot.State.Intervals[1].Path != "b.go" {
+		t.Fatalf("canonical intervals = %#v", snapshot.State.Intervals)
+	}
+}
+
+func TestReconstructRejectsPartialEvent(t *testing.T) {
+	if _, err := Reconstruct([]protocol.Event{{EventID: "partial"}}, 0, time.Minute); err == nil {
+		t.Fatal("partial replay event was accepted")
+	}
+}
+
 func event(id string, kind protocol.EventType, path string, at time.Time) protocol.Event {
 	return protocol.Event{SchemaVersion: protocol.SchemaVersion, EventID: id, SessionID: "s", SourceType: protocol.SourceSynthetic, SourceConfidence: protocol.ConfidenceExact, EventType: kind, Timestamp: at, Path: path}
 }

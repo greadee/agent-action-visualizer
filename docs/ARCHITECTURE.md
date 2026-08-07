@@ -71,8 +71,11 @@ Candidates are ordered by evidence, operation, and recency: explicit native file
 - The ingress queue is bounded. It coalesces duplicate reads first, then drops low-confidence/read activity before create/write/move/delete/session events.
 - SQLite and diff work occur off the adapter critical path.
 - Invalid versions, oversized payloads, path traversal, and out-of-root paths are rejected and diagnosed locally.
-- Renderer disconnects do not stop collection. Reconnection requests a fresh snapshot followed by patches.
-- Recovery closes stale open intervals at the last trustworthy timestamp and marks them recovered.
+- Renderer disconnects do not stop collection. Reconnection subscribes first and requests a fresh graph/focus snapshot; revision checks reject stale patches.
+- Startup integrity-checks SQLite. Corrupt database files and sidecars are preserved in a timestamped quarantine before a clean journal opens; diagnostics expose a fixed recovery code, not paths or stored payloads.
+- Recovery closes stale open intervals at the earlier of startup and the idle cap, marks the session recovered, and retries interrupted migrations from a transactionally clean schema.
+- Persisted replay deduplicates event IDs and uses lifecycle, timestamp, monotonic timestamp, and event ID ordering. Late live events cannot roll focus backward.
+- Graceful shutdown stops new IPC delivery, drains accepted ingress, cancels diff work, flushes journal records, and closes SQLite in that order. Every close path is idempotent.
 
 ## Data retention and privacy
 

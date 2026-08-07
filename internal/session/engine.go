@@ -53,9 +53,11 @@ type Engine struct {
 	sessions    map[string]*State
 }
 
+const DefaultIdleTimeout = 2 * time.Minute
+
 func NewEngine(idleTimeout time.Duration) *Engine {
 	if idleTimeout <= 0 {
-		idleTimeout = 2 * time.Minute
+		idleTimeout = DefaultIdleTimeout
 	}
 	return &Engine{idleTimeout: idleTimeout, sessions: make(map[string]*State)}
 }
@@ -69,13 +71,18 @@ func (e *Engine) Apply(event protocol.Event) (State, error) {
 	s := e.sessions[event.SessionID]
 	if event.EventType == protocol.EventSessionStarted {
 		if s == nil {
-			s = &State{SessionID: event.SessionID, StartedAt: event.Timestamp}
+			s = &State{SessionID: event.SessionID, StartedAt: event.Timestamp, currentTimestamp: event.Timestamp}
 			e.sessions[event.SessionID] = s
 		}
 		return clone(s), nil
 	}
 	if s == nil {
 		return State{}, errors.New("session has not started")
+	}
+	// Late delivery must not roll live focus or interval geometry backward.
+	// Persisted replay performs its own canonical ordering.
+	if event.Timestamp.Before(s.currentTimestamp) {
+		return clone(s), nil
 	}
 	if event.EventType == protocol.EventSessionStopped {
 		e.closeCurrent(s, event.Timestamp)

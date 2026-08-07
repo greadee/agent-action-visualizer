@@ -30,6 +30,10 @@ declare global {
             sessionID: string,
             cursor: number,
           ) => Promise<ReplaySession>
+          Resync: () => Promise<{
+            graph: GraphSnapshot
+            focus?: LiveFocusState
+          }>
         }
       }
     }
@@ -66,6 +70,17 @@ export function useGraphBridge(
       (payload) => setLiveFocus(payload as LiveFocusState),
       -1,
     )
+    const resync = window.go?.main?.App?.Resync
+    if (resync) {
+      void resync().then((state) => {
+        setGraph((current) => {
+          const incomingRevision = state.graph.revision ?? -1
+          const currentRevision = current.revision ?? -1
+          return incomingRevision >= currentRevision ? state.graph : current
+        })
+        if (state.focus) setLiveFocus((current) => current ?? state.focus)
+      })
+    }
     return () => {
       offSnapshot?.()
       offPatch?.()

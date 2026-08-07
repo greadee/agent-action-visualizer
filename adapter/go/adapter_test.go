@@ -3,6 +3,7 @@ package adapter_test
 import (
 	"context"
 	"errors"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -83,6 +84,18 @@ func TestBoundedEmitterCapsBatchAndRecoversCollectorPanic(t *testing.T) {
 func TestNormalizeProjectPathRejectsEscape(t *testing.T) {
 	if _, err := adapter.NormalizeProjectPath(t.TempDir(), "../secret.txt"); err == nil {
 		t.Fatal("expected path escape rejection")
+	}
+}
+
+func TestNormalizeProjectPathUsesPortableSeparators(t *testing.T) {
+	root := t.TempDir()
+	nested := filepath.Join(root, "src", "nested", "file.go")
+	path, err := adapter.NormalizeProjectPath(root, nested)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if path != "src/nested/file.go" {
+		t.Fatalf("normalized path = %q", path)
 	}
 }
 

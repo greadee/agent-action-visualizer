@@ -7,11 +7,14 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 
 	workdiff "github.com/greadee/agent-action-visualizer/internal/diff"
 	localipc "github.com/greadee/agent-action-visualizer/internal/ipc"
+	"github.com/greadee/agent-action-visualizer/internal/session"
+	"github.com/greadee/agent-action-visualizer/internal/store"
 	protocol "github.com/greadee/agent-action-visualizer/protocol/go"
 )
 
@@ -233,6 +236,121 @@ func TestLocalCollectorFeedsSessionPipeline(t *testing.T) {
 			t.Fatalf("collector event did not reach session pipeline: state=%#v err=%v", state, err)
 		}
 		time.Sleep(time.Millisecond)
+	}
+}
+
+func TestResyncReturnsAuthoritativeGraphAndFocus(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "main.go"), []byte("package main"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	app := newTestApp(t)
+	graph, err := app.LoadProject(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	base := time.Unix(8_000, 0).UTC()
+	if _, err := app.PublishActivityEvent(activityEvent("resync-start", protocol.EventSessionStarted, "", base)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := app.PublishActivityEvent(activityEvent("resync-read", protocol.EventFileRead, "main.go", base.Add(time.Second))); err != nil {
+		t.Fatal(err)
+	}
+	state := app.Resync()
+	if state.Graph.Revision != graph.Revision || state.Focus == nil || state.Focus.ActivePath != "main.go" || len(state.Focus.Trail) != 1 {
+		t.Fatalf("resync state = %#v", state)
+	}
+}
+
+func TestShutdownIsIdempotent(t *testing.T) {
+	app := NewApp()
+	app.shutdown(context.Background())
+	app.shutdown(context.Background())
+	if app.Health()["service"] != "agent-action-visualizer" {
+		t.Fatalf("health after shutdown = %#v", app.Health())
+	}
+}
+
+func TestJournalCorruptionRecoveryUsesSafeHealthCode(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "sessions.db")
+	app := newTestApp(t)
+	const privateMarker = "private-database-payload"
+	if err := os.WriteFile(path, []byte(privateMarker), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	app.startJournalAt(path)
+	health := app.Health()
+	if health["persistence"] != "ready" || health["recovery"] != "database_quarantined" {
+		t.Fatalf("health = %#v", health)
+	}
+	for key, value := range health {
+		if strings.Contains(value, privateMarker) || strings.Contains(value, path) {
+			t.Fatalf("health field %s leaked recovery data", key)
+		}
+	}
+}
+
+func TestJournalStartupRecoversStaleSession(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "sessions.db")
+	journal, err := store.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	started := time.Now().UTC().Add(-time.Hour)
+	state := session.State{
+		SessionID: "stale", StartedAt: started, ActivePath: "main.go",
+		Intervals: []session.AccessInterval{{Sequence: 1, Path: "main.go", StartedAt: started}},
+	}
+	if err := journal.SaveSession(context.Background(), state, ""); err != nil {
+		t.Fatal(err)
+	}
+	if err := journal.Close(); err != nil {
+		t.Fatal(err)
+	}
+	app := newTestApp(t)
+	app.startJournalAt(path)
+	if app.Health()["recovery"] != "stale_sessions_closed" {
+		t.Fatalf("health = %#v", app.Health())
+	}
+	app.stopJournal()
+	journal, err = store.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer journal.Close()
+	recovered, err := journal.Session(context.Background(), "stale")
+	if err != nil || recovered.StoppedAt == nil || recovered.Intervals[0].Duration != session.DefaultIdleTimeout {
+		t.Fatalf("recovered state = %+v err=%v", recovered, err)
+	}
+}
+
+func TestShutdownFlushesQueuedJournalRecords(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "main.go"), []byte("package main"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "sessions.db")
+	app := NewApp()
+	if _, err := app.LoadProject(root); err != nil {
+		t.Fatal(err)
+	}
+	app.startJournalAt(path)
+	base := time.Unix(9_000, 0).UTC()
+	if _, err := app.PublishActivityEvent(activityEvent("flush-start", protocol.EventSessionStarted, "", base)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := app.PublishActivityEvent(activityEvent("flush-read", protocol.EventFileRead, "main.go", base.Add(time.Second))); err != nil {
+		t.Fatal(err)
+	}
+	app.shutdown(context.Background())
+	journal, err := store.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer journal.Close()
+	events, err := journal.Events(context.Background(), "review-session")
+	if err != nil || len(events) != 2 {
+		t.Fatalf("flushed events = %#v err=%v", events, err)
 	}
 }
 

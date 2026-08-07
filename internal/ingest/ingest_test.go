@@ -117,6 +117,26 @@ func TestCollectorProcessesAsynchronously(t *testing.T) {
 	}
 }
 
+func TestCollectorStopDrainsAcceptedEvents(t *testing.T) {
+	processed := make(chan string, 4)
+	collector := NewCollector(4, func(_ context.Context, event protocol.Event) { processed <- event.EventID })
+	collector.Start(context.Background())
+	for _, id := range []string{"one", "two", "three"} {
+		if !collector.Submit(event(id, protocol.EventFilePatched, id+".go")) {
+			t.Fatalf("event %s was not accepted", id)
+		}
+	}
+	collector.Stop()
+	close(processed)
+	var count int
+	for range processed {
+		count++
+	}
+	if count != 3 {
+		t.Fatalf("processed %d accepted events", count)
+	}
+}
+
 func TestQueueBurstRemainsBounded(t *testing.T) {
 	const capacity = 256
 	q := NewQueue(capacity)

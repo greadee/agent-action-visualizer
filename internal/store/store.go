@@ -7,6 +7,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -20,6 +23,16 @@ import (
 var migrations embed.FS
 
 type Store struct{ db *sql.DB }
+
+var (
+	ErrCorruptDatabase = errors.New("local database is corrupt")
+	ErrCorruptRecord   = errors.New("persisted record is corrupt")
+)
+
+type Recovery struct {
+	Code           string
+	QuarantinePath string
+}
 
 type SessionSummary struct {
 	ID        string     `json:"id"`
@@ -41,14 +54,56 @@ func Open(path string) (*Store, error) {
 	store := &Store{db: db}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+	if err := store.checkIntegrity(ctx); err != nil {
+		db.Close()
+		return nil, err
+	}
 	if err := store.migrate(ctx); err != nil {
 		db.Close()
+		if isCorruption(err) {
+			return nil, ErrCorruptDatabase
+		}
 		return nil, err
 	}
 	return store, nil
 }
 
+// OpenRecovering preserves a corrupt database and its sidecars before opening
+// a clean journal. It never removes the quarantined evidence.
+func OpenRecovering(path string, at time.Time) (*Store, Recovery, error) {
+	value, err := Open(path)
+	if err == nil {
+		return value, Recovery{Code: "none"}, nil
+	}
+	if !errors.Is(err, ErrCorruptDatabase) {
+		return nil, Recovery{Code: "open_failed"}, err
+	}
+	quarantinePath, quarantineErr := quarantine(path, at)
+	if quarantineErr != nil {
+		return nil, Recovery{Code: "quarantine_failed"}, quarantineErr
+	}
+	value, err = Open(path)
+	if err != nil {
+		return nil, Recovery{Code: "reopen_failed", QuarantinePath: quarantinePath}, err
+	}
+	return value, Recovery{Code: "database_quarantined", QuarantinePath: quarantinePath}, nil
+}
+
 func (s *Store) Close() error { return s.db.Close() }
+
+func (s *Store) checkIntegrity(ctx context.Context) error {
+	var result string
+	if err := s.db.QueryRowContext(ctx, "PRAGMA quick_check(1)").Scan(&result); err != nil {
+		if isCorruption(err) {
+			return ErrCorruptDatabase
+		}
+		return err
+	}
+	if !strings.EqualFold(result, "ok") {
+		return ErrCorruptDatabase
+	}
+	return nil
+}
 
 func (s *Store) migrate(ctx context.Context) error {
 	if _, err := s.db.ExecContext(ctx, "PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON"); err != nil {
@@ -77,20 +132,27 @@ func (s *Store) migrate(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		tx, err := s.db.BeginTx(ctx, nil)
-		if err != nil {
+		if err := s.applyMigration(ctx, version, string(script), time.Now().UTC()); err != nil {
 			return err
 		}
-		if _, err = tx.ExecContext(ctx, string(script)); err == nil {
-			_, err = tx.ExecContext(ctx, "INSERT INTO schema_migrations(version, applied_at) VALUES(?, ?)", version, time.Now().UTC().Format(time.RFC3339Nano))
-		}
-		if err != nil {
-			tx.Rollback()
-			return fmt.Errorf("migration %d: %w", version, err)
-		}
-		if err = tx.Commit(); err != nil {
-			return err
-		}
+	}
+	return nil
+}
+
+func (s *Store) applyMigration(ctx context.Context, version int, script string, at time.Time) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	if _, err = tx.ExecContext(ctx, script); err == nil {
+		_, err = tx.ExecContext(ctx, "INSERT INTO schema_migrations(version, applied_at) VALUES(?, ?)", version, at.UTC().Format(time.RFC3339Nano))
+	}
+	if err != nil {
+		_ = tx.Rollback()
+		return fmt.Errorf("migration %d: %w", version, err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("migration %d commit: %w", version, err)
 	}
 	return nil
 }
@@ -119,24 +181,32 @@ func (s *Store) EnsureProject(ctx context.Context, id, root string) error {
 }
 
 func (s *Store) Events(ctx context.Context, sessionID string) ([]protocol.Event, error) {
-	rows, err := s.db.QueryContext(ctx, "SELECT event_json FROM events WHERE session_id=? ORDER BY sequence", sessionID)
+	rows, err := s.db.QueryContext(ctx, "SELECT sequence,event_json FROM events WHERE session_id=?", sessionID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	var out []protocol.Event
 	for rows.Next() {
+		var sequence int64
 		var payload string
-		if err := rows.Scan(&payload); err != nil {
+		if err := rows.Scan(&sequence, &payload); err != nil {
 			return nil, err
 		}
 		var event protocol.Event
 		if err := json.Unmarshal([]byte(payload), &event); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("%w: events sequence %d", ErrCorruptRecord, sequence)
+		}
+		if err := event.Validate(); err != nil {
+			return nil, fmt.Errorf("%w: events sequence %d", ErrCorruptRecord, sequence)
 		}
 		out = append(out, event)
 	}
-	return out, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	sort.Slice(out, func(i, j int) bool { return eventLess(out[i], out[j]) })
+	return out, nil
 }
 
 func (s *Store) SaveSession(ctx context.Context, state session.State, projectID string) error {
@@ -164,7 +234,7 @@ func (s *Store) Session(ctx context.Context, id string) (session.State, error) {
 	}
 	var state session.State
 	if err := json.Unmarshal([]byte(payload), &state); err != nil {
-		return session.State{}, err
+		return session.State{}, fmt.Errorf("%w: session state", ErrCorruptRecord)
 	}
 	return state, nil
 }
@@ -186,12 +256,12 @@ func (s *Store) Sessions(ctx context.Context, projectID string) ([]SessionSummar
 		}
 		var err error
 		if item.StartedAt, err = time.Parse(time.RFC3339Nano, started); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("%w: session started_at", ErrCorruptRecord)
 		}
 		if stopped.Valid {
 			value, err := time.Parse(time.RFC3339Nano, stopped.String)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("%w: session stopped_at", ErrCorruptRecord)
 			}
 			item.StoppedAt = &value
 		}
@@ -218,18 +288,131 @@ func (s *Store) RecoverActiveSessions(ctx context.Context, at time.Time) (int, e
 	if err := rows.Err(); err != nil {
 		return 0, err
 	}
+	if err := rows.Close(); err != nil {
+		return 0, err
+	}
+	type recoveredItem struct {
+		id, payload string
+		stoppedAt   time.Time
+	}
+	recovered := make([]recoveredItem, 0, len(items))
 	for _, x := range items {
 		var state session.State
 		if err := json.Unmarshal([]byte(x.payload), &state); err != nil {
-			return 0, err
+			return 0, fmt.Errorf("%w: session state", ErrCorruptRecord)
 		}
-		state.StoppedAt = &at
-		payload, _ := json.Marshal(state)
-		if _, err := s.db.ExecContext(ctx, "UPDATE sessions SET stopped_at=?,status='recovered',state_json=? WHERE id=?", at.UTC().Format(time.RFC3339Nano), string(payload), x.id); err != nil {
+		recoveredAt := closeStaleInterval(&state, at, session.DefaultIdleTimeout)
+		state.StoppedAt = &recoveredAt
+		state.Paused = false
+		payload, err := json.Marshal(state)
+		if err != nil {
+			return 0, fmt.Errorf("encode recovered session: %w", err)
+		}
+		recovered = append(recovered, recoveredItem{id: x.id, payload: string(payload), stoppedAt: recoveredAt})
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, err
+	}
+	for _, item := range recovered {
+		if _, err := tx.ExecContext(ctx, "UPDATE sessions SET stopped_at=?,status='recovered',state_json=? WHERE id=?", item.stoppedAt.UTC().Format(time.RFC3339Nano), item.payload, item.id); err != nil {
+			_ = tx.Rollback()
 			return 0, err
 		}
 	}
+	if err := tx.Commit(); err != nil {
+		return 0, err
+	}
 	return len(items), nil
+}
+
+func closeStaleInterval(state *session.State, observedAt time.Time, idleTimeout time.Duration) time.Time {
+	recoveredAt := observedAt
+	if len(state.Intervals) == 0 {
+		return recoveredAt
+	}
+	interval := &state.Intervals[len(state.Intervals)-1]
+	if interval.EndedAt != nil {
+		return *interval.EndedAt
+	}
+	limit := interval.StartedAt.Add(idleTimeout)
+	if recoveredAt.After(limit) {
+		recoveredAt = limit
+	}
+	if recoveredAt.Before(interval.StartedAt) {
+		recoveredAt = interval.StartedAt
+	}
+	interval.EndedAt = &recoveredAt
+	interval.Duration = recoveredAt.Sub(interval.StartedAt)
+	return recoveredAt
+}
+
+func eventLess(left, right protocol.Event) bool {
+	leftRank, rightRank := lifecycleRank(left.EventType), lifecycleRank(right.EventType)
+	if leftRank != rightRank {
+		return leftRank < rightRank
+	}
+	if !left.Timestamp.Equal(right.Timestamp) {
+		return left.Timestamp.Before(right.Timestamp)
+	}
+	if left.MonotonicTimestamp != right.MonotonicTimestamp {
+		if left.MonotonicTimestamp == 0 {
+			return false
+		}
+		if right.MonotonicTimestamp == 0 {
+			return true
+		}
+		return left.MonotonicTimestamp < right.MonotonicTimestamp
+	}
+	return left.EventID < right.EventID
+}
+
+func lifecycleRank(eventType protocol.EventType) int {
+	switch eventType {
+	case protocol.EventSessionStarted:
+		return 0
+	case protocol.EventSessionStopped:
+		return 2
+	default:
+		return 1
+	}
+}
+
+func quarantine(path string, at time.Time) (string, error) {
+	base := path + ".corrupt-" + at.UTC().Format("20060102T150405.000000000Z")
+	target := base
+	for suffix := 1; ; suffix++ {
+		if _, err := os.Lstat(target); errors.Is(err, os.ErrNotExist) {
+			break
+		} else if err != nil {
+			return "", err
+		}
+		target = fmt.Sprintf("%s-%d", base, suffix)
+	}
+	if err := os.Rename(path, target); err != nil {
+		return "", err
+	}
+	for _, sidecar := range []string{"-wal", "-shm"} {
+		if _, err := os.Lstat(path + sidecar); errors.Is(err, os.ErrNotExist) {
+			continue
+		} else if err != nil {
+			return "", err
+		}
+		if err := os.Rename(path+sidecar, target+sidecar); err != nil {
+			return "", err
+		}
+	}
+	return filepath.Clean(target), nil
+}
+
+func isCorruption(err error) bool {
+	if err == nil {
+		return false
+	}
+	message := strings.ToLower(err.Error())
+	return strings.Contains(message, "database disk image is malformed") ||
+		strings.Contains(message, "file is not a database") ||
+		strings.Contains(message, "database corruption")
 }
 
 func (s *Store) Tables(ctx context.Context) ([]string, error) {

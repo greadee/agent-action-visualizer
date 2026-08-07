@@ -3,6 +3,8 @@ package replay
 
 import (
 	"errors"
+	"fmt"
+	"sort"
 	"time"
 
 	workdiff "github.com/greadee/agent-action-visualizer/internal/diff"
@@ -22,6 +24,12 @@ type Snapshot struct {
 // Reconstruct applies events through cursor. An unfinished access is closed at
 // the cursor timestamp so replay geometry never depends on wall-clock time.
 func Reconstruct(events []protocol.Event, cursor int, idleTimeout time.Duration) (Snapshot, error) {
+	for _, event := range events {
+		if err := event.Validate(); err != nil {
+			return Snapshot{}, fmt.Errorf("invalid replay event: %w", err)
+		}
+	}
+	events = canonicalEvents(events)
 	if len(events) == 0 || cursor < 0 {
 		return Snapshot{Cursor: -1, EventCount: len(events)}, nil
 	}
@@ -53,6 +61,51 @@ func Reconstruct(events []protocol.Event, cursor int, idleTimeout time.Duration)
 		state, _ = engine.Pause(state.SessionID, cursorAt)
 	}
 	return Snapshot{State: state, Cursor: cursor, CursorAt: cursorAt, EventCount: len(events)}, nil
+}
+
+func canonicalEvents(events []protocol.Event) []protocol.Event {
+	unique := make(map[string]protocol.Event, len(events))
+	for _, event := range events {
+		if _, exists := unique[event.EventID]; !exists {
+			unique[event.EventID] = event
+		}
+	}
+	ordered := make([]protocol.Event, 0, len(unique))
+	for _, event := range unique {
+		ordered = append(ordered, event)
+	}
+	sort.Slice(ordered, func(i, j int) bool {
+		left, right := ordered[i], ordered[j]
+		leftRank, rightRank := replayRank(left.EventType), replayRank(right.EventType)
+		if leftRank != rightRank {
+			return leftRank < rightRank
+		}
+		if !left.Timestamp.Equal(right.Timestamp) {
+			return left.Timestamp.Before(right.Timestamp)
+		}
+		if left.MonotonicTimestamp != right.MonotonicTimestamp {
+			if left.MonotonicTimestamp == 0 {
+				return false
+			}
+			if right.MonotonicTimestamp == 0 {
+				return true
+			}
+			return left.MonotonicTimestamp < right.MonotonicTimestamp
+		}
+		return left.EventID < right.EventID
+	})
+	return ordered
+}
+
+func replayRank(eventType protocol.EventType) int {
+	switch eventType {
+	case protocol.EventSessionStarted:
+		return 0
+	case protocol.EventSessionStopped:
+		return 2
+	default:
+		return 1
+	}
 }
 
 func applyDiff(engine *session.Engine, event protocol.Event) (session.State, error) {
