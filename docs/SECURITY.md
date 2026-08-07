@@ -42,7 +42,7 @@ Codex patch bodies and tool responses are parsed only in bounded memory to deriv
 
 ## Dependency and build review
 
-The root and desktop modules passed `go mod verify`. The committed npm lockfile passed `npm audit --offline --json` with 276 dependencies and zero cached advisories at all severities. A network-refreshed npm audit and Go vulnerability-database scan were unavailable in the restricted validation environment; CI now refreshes and fails on high/critical npm advisories. `govulncheck` should be run in a network-authorized release environment before a production release.
+The root and desktop modules passed `go mod verify`. The initial offline npm cache reported no advisories; the network-refreshed CI audit then identified high findings in `brace-expansion` 5.0.7 and `undici` 7.28.0. The lockfile now selects patched 5.0.9 and 7.29.0 releases, and a fresh registry audit reports one remaining moderate advisory below the enforced high threshold. A Go vulnerability-database scan was unavailable because `govulncheck` is not installed; it should be run in a network-authorized release environment before a production release.
 
 CI has read-only repository permissions, verifies Go module checksums, installs npm dependencies with `npm ci`, audits high-severity npm findings, and uploads only the generated frontend bundle for one day. No workflow receives repository credentials beyond GitHub's read-only token. Action tags remain a supply-chain trust dependency and are monitored by Dependabot.
 
@@ -53,6 +53,7 @@ CI has read-only repository permissions, verifies Go module checksums, installs 
 - Symlink tests may skip on Windows hosts that do not grant symlink creation; Linux CI exercises them.
 - Secret redaction is defense-in-depth, not a universal secret detector. The stronger control is dropping raw commands and non-allowlisted metadata.
 - Dependencies and GitHub Actions still require upstream supply-chain trust. Release validation must refresh both npm and Go vulnerability databases.
+- The refreshed npm dependency graph currently reports one moderate advisory below the CI failure threshold; Dependabot and release validation must track it to resolution.
 
 ## Reporting
 
