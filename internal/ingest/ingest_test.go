@@ -3,6 +3,7 @@ package ingest
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -38,6 +39,52 @@ func TestNormalizeRejectsTraversal(t *testing.T) {
 	}
 	if _, err := Normalize(event("2", protocol.EventFileRead, filepath.Join(root, "..", "secret")), root); err == nil {
 		t.Fatal("out-of-root path accepted")
+	}
+	secondary := event("3", protocol.EventFileRead, filepath.Join(root, "safe.go"))
+	secondary.Metadata = map[string]interface{}{"secondary_paths": []string{"../secret"}}
+	if _, err := Normalize(secondary, root); err == nil {
+		t.Fatal("out-of-root secondary path accepted")
+	}
+}
+
+func TestNormalizeRejectsPrimaryAndSecondarySymlinkEscapes(t *testing.T) {
+	root := t.TempDir()
+	outside := t.TempDir()
+	link := filepath.Join(root, "outside-link")
+	if err := os.Symlink(outside, link); err != nil {
+		t.Skipf("symbolic links unavailable: %v", err)
+	}
+	primary := event("primary", protocol.EventFileRead, filepath.Join(link, "secret.txt"))
+	if _, err := Normalize(primary, root); err == nil {
+		t.Fatal("primary symlink escape was accepted")
+	}
+	secondary := event("secondary", protocol.EventFileRead, filepath.Join(root, "safe.txt"))
+	secondary.Metadata = map[string]interface{}{"secondary_paths": []string{filepath.Join(link, "secret.txt")}}
+	if _, err := Normalize(secondary, root); err == nil {
+		t.Fatal("secondary symlink escape was accepted")
+	}
+}
+
+func TestNormalizeMinimizesMetadataAndCommand(t *testing.T) {
+	root := t.TempDir()
+	e := event("sanitize", protocol.EventFileRead, filepath.Join(root, "safe.txt"))
+	e.Command = "tool --token private-value"
+	e.ActionLabel = "read\npassword=private-value"
+	e.Metadata = map[string]interface{}{
+		"access_sequence": 7,
+		"prompt":          "private-value",
+		"tool_response":   "private-value",
+		"environment":     map[string]interface{}{"TOKEN": "private-value"},
+	}
+	normalized, err := Normalize(e, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if normalized.Command != "" || normalized.ActionLabel == e.ActionLabel {
+		t.Fatalf("command or label was not sanitized: %#v", normalized)
+	}
+	if len(normalized.Metadata) != 1 || normalized.Metadata["access_sequence"] != 7 {
+		t.Fatalf("metadata was not minimized: %#v", normalized.Metadata)
 	}
 }
 

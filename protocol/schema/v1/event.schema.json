@@ -95,7 +95,11 @@
     "phase_id": { "type": "string", "maxLength": 64 },
     "slice_id": { "type": "string", "maxLength": 64 },
     "action_label": { "type": "string", "maxLength": 256 },
-    "metadata": { "type": "object", "additionalProperties": true }
+    "metadata": {
+      "type": "object",
+      "maxProperties": 1024,
+      "additionalProperties": true
+    }
   },
   "additionalProperties": true
 }

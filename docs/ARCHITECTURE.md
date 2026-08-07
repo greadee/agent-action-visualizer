@@ -37,8 +37,8 @@ adapter -> local authenticated transport -> bounded ingress queue
 
 1. An adapter receives a supported native event or observes a local change.
 2. It performs bounded parsing, adds adapter metadata, submits a versioned envelope, and exits successfully without output.
-3. Local IPC authenticates and size-limits the envelope, then offers it to a bounded priority queue.
-4. The normalizer resolves the project root, canonical relative paths, source/confidence, and stable identity.
+3. Local IPC uses owner-scoped OS access control, size-limits the envelope, and validates a complete batch before offering any event to a bounded priority queue.
+4. The normalizer resolves the project root, rejects lexical and symbolic-link escapes, minimizes metadata, and produces canonical relative paths.
 5. Deduplication and pre/post correlation enrich the event without rewriting raw evidence.
 6. The session engine applies active-file priority, closes/open access intervals, and caps idle time.
 7. Graph changes and line-delta work are scheduled asynchronously.
@@ -76,7 +76,7 @@ Candidates are ordered by evidence, operation, and recency: explicit native file
 
 ## Data retention and privacy
 
-The default database contains relative paths, normalized metadata, timestamps, counts, hashes where needed, and redacted command/tool labels. It does not contain source contents, environment variables, prompts, model responses, credentials, or telemetry. Temporary before/after snapshots are opt-in, constrained to the selected root, and deleted after delta calculation.
+The default database contains relative paths, allowlisted normalized metadata, timestamps, counts, hashes where needed, and single-line redacted command/tool labels. Raw command fields are discarded before persistence. Unsupported metadata keys are dropped at normalized ingress and again at the SQLite boundary, so source contents, environment variables, prompts, model responses, credentials, and telemetry are not retained by default. Temporary before/after snapshots are opt-in, constrained to the selected root, and deleted after delta calculation.
 
 ## Renderer model
 

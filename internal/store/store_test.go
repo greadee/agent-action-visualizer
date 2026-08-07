@@ -2,7 +2,9 @@ package store
 
 import (
 	"context"
+	"encoding/json"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -39,6 +41,48 @@ func TestMigrationsEventPersistenceAndReopen(t *testing.T) {
 	events, err := store.Events(ctx, "s")
 	if err != nil || len(events) != 1 || events[0].Path != "a.go" {
 		t.Fatalf("events=%+v err=%v", events, err)
+	}
+}
+
+func TestSaveEventDoesNotRetainSourceContentOrSecrets(t *testing.T) {
+	store, err := Open(filepath.Join(t.TempDir(), "aav.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	const secret = "p9s3-private-source-marker"
+	event := protocol.Event{
+		SchemaVersion: protocol.SchemaVersion, EventID: "privacy", SessionID: "session",
+		EventType: protocol.EventCommandCompleted, SourceType: protocol.SourceWrapper,
+		SourceConfidence: protocol.ConfidenceExact, Timestamp: time.Unix(1, 0).UTC(),
+		Command: "runner --token " + secret, ActionLabel: "token=" + secret,
+		Metadata: map[string]interface{}{
+			"access_sequence": 3,
+			"prompt":          "source " + secret,
+			"tool_response":   secret,
+			"environment":     map[string]interface{}{"API_KEY": secret},
+			"reason":          "password=" + secret,
+		},
+	}
+	if err := store.SaveEvent(context.Background(), event); err != nil {
+		t.Fatal(err)
+	}
+	events, err := store.Events(context.Background(), "session")
+	if err != nil || len(events) != 1 {
+		t.Fatalf("events=%#v err=%v", events, err)
+	}
+	payload, err := json.Marshal(events[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(payload), secret) || events[0].Command != "" {
+		t.Fatalf("sensitive payload was retained: %s", payload)
+	}
+	if _, found := events[0].Metadata["prompt"]; found {
+		t.Fatalf("unsupported metadata was retained: %#v", events[0].Metadata)
+	}
+	if events[0].Metadata["access_sequence"] != float64(3) {
+		t.Fatalf("required metadata was lost: %#v", events[0].Metadata)
 	}
 }
 

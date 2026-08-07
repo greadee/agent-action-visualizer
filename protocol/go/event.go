@@ -2,12 +2,20 @@
 package protocol
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
+	"unicode/utf8"
 )
 
-const SchemaVersion = "1.0"
+const (
+	SchemaVersion      = "1.0"
+	MaxMetadataBytes   = 64 << 10
+	MaxMetadataDepth   = 8
+	MaxMetadataEntries = 1024
+)
 
 type Confidence string
 
@@ -123,9 +131,103 @@ func (e Event) Validate() error {
 	if e.Timestamp.IsZero() {
 		return errors.New("timestamp is required")
 	}
+	if e.MonotonicTimestamp < 0 {
+		return errors.New("monotonic_timestamp must be non-negative")
+	}
+	if e.ProcessID < 0 {
+		return errors.New("process_id must be non-negative")
+	}
+	for _, field := range []struct {
+		name  string
+		value string
+		limit int
+	}{
+		{"event_id", e.EventID, 128}, {"session_id", e.SessionID, 128}, {"project_id", e.ProjectID, 128},
+		{"agent_id", e.AgentID, 128}, {"agent_type", e.AgentType, 64}, {"adapter_id", e.AdapterID, 128},
+		{"adapter_version", e.AdapterVersion, 64}, {"operation", e.Operation, 64}, {"status", e.Status, 64},
+		{"correlation_id", e.CorrelationID, 128}, {"parent_event_id", e.ParentEventID, 128}, {"thread_id", e.ThreadID, 128},
+		{"turn_id", e.TurnID, 128}, {"tool_name", e.ToolName, 256}, {"command", e.Command, 4096},
+		{"project_root", e.ProjectRoot, 4096}, {"path", e.Path, 4096}, {"previous_path", e.PreviousPath, 4096},
+		{"node_id", e.NodeID, 128}, {"content_hash_before", e.ContentHashBefore, 256}, {"content_hash_after", e.ContentHashAfter, 256},
+		{"phase_id", e.PhaseID, 64}, {"slice_id", e.SliceID, 64}, {"action_label", e.ActionLabel, 256},
+	} {
+		if err := validateString(field.name, field.value, field.limit); err != nil {
+			return err
+		}
+	}
 	for name, value := range map[string]*int64{"duration_ms": e.DurationMS, "lines_added": e.LinesAdded, "lines_deleted": e.LinesDeleted, "bytes_before": e.BytesBefore, "bytes_after": e.BytesAfter} {
 		if value != nil && *value < 0 {
 			return fmt.Errorf("%s must be non-negative", name)
+		}
+	}
+	if err := validateMetadata(e.Metadata); err != nil {
+		return err
+	}
+	return nil
+}
+
+func validateString(name, value string, limit int) error {
+	if !utf8.ValidString(value) {
+		return fmt.Errorf("%s must be valid UTF-8", name)
+	}
+	if strings.IndexByte(value, 0) >= 0 {
+		return fmt.Errorf("%s must not contain NUL", name)
+	}
+	if len(value) > limit {
+		return fmt.Errorf("%s exceeds %d bytes", name, limit)
+	}
+	return nil
+}
+
+func validateMetadata(metadata map[string]interface{}) error {
+	if metadata == nil {
+		return nil
+	}
+	payload, err := json.Marshal(metadata)
+	if err != nil {
+		return fmt.Errorf("metadata is not valid JSON: %w", err)
+	}
+	if len(payload) > MaxMetadataBytes {
+		return fmt.Errorf("metadata exceeds %d bytes", MaxMetadataBytes)
+	}
+	var value interface{}
+	if err := json.Unmarshal(payload, &value); err != nil {
+		return fmt.Errorf("metadata is not valid JSON: %w", err)
+	}
+	entries := 0
+	if err := validateMetadataValue(value, 0, &entries); err != nil {
+		return err
+	}
+	return nil
+}
+
+func validateMetadataValue(value interface{}, depth int, entries *int) error {
+	if depth > MaxMetadataDepth {
+		return fmt.Errorf("metadata exceeds maximum depth %d", MaxMetadataDepth)
+	}
+	switch typed := value.(type) {
+	case map[string]interface{}:
+		for key, child := range typed {
+			(*entries)++
+			if *entries > MaxMetadataEntries {
+				return fmt.Errorf("metadata exceeds %d entries", MaxMetadataEntries)
+			}
+			if err := validateString("metadata key", key, 128); err != nil {
+				return err
+			}
+			if err := validateMetadataValue(child, depth+1, entries); err != nil {
+				return err
+			}
+		}
+	case []interface{}:
+		for _, child := range typed {
+			(*entries)++
+			if *entries > MaxMetadataEntries {
+				return fmt.Errorf("metadata exceeds %d entries", MaxMetadataEntries)
+			}
+			if err := validateMetadataValue(child, depth+1, entries); err != nil {
+				return err
+			}
 		}
 	}
 	return nil

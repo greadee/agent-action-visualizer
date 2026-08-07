@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/greadee/agent-action-visualizer/internal/security"
 	"github.com/greadee/agent-action-visualizer/internal/session"
 	protocol "github.com/greadee/agent-action-visualizer/protocol/go"
 	_ "modernc.org/sqlite"
@@ -98,6 +99,7 @@ func (s *Store) SaveEvent(ctx context.Context, event protocol.Event) error {
 	if err := event.Validate(); err != nil {
 		return err
 	}
+	event = security.SanitizeEvent(event)
 	payload, err := json.Marshal(event)
 	if err != nil {
 		return err

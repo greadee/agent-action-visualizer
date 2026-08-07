@@ -41,3 +41,23 @@ func TestScanIgnoresAndClassifies(t *testing.T) {
 		}
 	}
 }
+
+func TestScanDoesNotFollowSymlinkOutsideProject(t *testing.T) {
+	root := t.TempDir()
+	outside := t.TempDir()
+	if err := os.WriteFile(filepath.Join(outside, "secret.txt"), []byte("private source"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(root, "linked")); err != nil {
+		t.Skipf("symbolic links unavailable: %v", err)
+	}
+	snapshot, err := NewScanner().Scan(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, node := range snapshot.Nodes {
+		if node.Path == "linked/secret.txt" {
+			t.Fatal("scanner followed an out-of-project symbolic link")
+		}
+	}
+}

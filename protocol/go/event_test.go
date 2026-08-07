@@ -2,6 +2,8 @@ package protocol
 
 import (
 	"encoding/json"
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 )
@@ -22,6 +24,43 @@ func TestEventValidationAndRoundTrip(t *testing.T) {
 	}
 	if decoded.Path != event.Path || decoded.LinesAdded == nil || *decoded.LinesAdded != added {
 		t.Fatalf("round trip mismatch: %#v", decoded)
+	}
+}
+
+func TestEventValidationEnforcesSecurityBounds(t *testing.T) {
+	valid := func() Event {
+		return Event{SchemaVersion: SchemaVersion, EventID: "event", EventType: EventFileRead, SourceType: SourceNativeHook, SourceConfidence: ConfidenceExact, Timestamp: time.Unix(1, 0).UTC()}
+	}
+	tests := map[string]func(*Event){
+		"overlong identifier": func(event *Event) { event.EventID = strings.Repeat("x", 129) },
+		"overlong path":       func(event *Event) { event.Path = strings.Repeat("x", 4097) },
+		"invalid UTF-8":       func(event *Event) { event.ActionLabel = string([]byte{0xff}) },
+		"NUL label":           func(event *Event) { event.ActionLabel = "safe\x00hidden" },
+		"negative process":    func(event *Event) { event.ProcessID = -1 },
+		"negative monotonic":  func(event *Event) { event.MonotonicTimestamp = -1 },
+		"oversized metadata": func(event *Event) {
+			event.Metadata = map[string]interface{}{"data": strings.Repeat("x", MaxMetadataBytes)}
+		},
+		"non-JSON metadata": func(event *Event) { event.Metadata = map[string]interface{}{"data": func() {}} },
+	}
+	for name, mutate := range tests {
+		t.Run(name, func(t *testing.T) {
+			event := valid()
+			mutate(&event)
+			if err := event.Validate(); err == nil {
+				t.Fatal("invalid event was accepted")
+			}
+		})
+	}
+
+	deep := valid()
+	value := map[string]interface{}{"leaf": true}
+	for depth := 0; depth <= MaxMetadataDepth; depth++ {
+		value = map[string]interface{}{fmt.Sprintf("level-%d", depth): value}
+	}
+	deep.Metadata = value
+	if err := deep.Validate(); err == nil {
+		t.Fatal("deeply nested metadata was accepted")
 	}
 }
 

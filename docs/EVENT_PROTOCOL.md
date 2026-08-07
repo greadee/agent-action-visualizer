@@ -6,4 +6,6 @@ Only the universal evidence envelope is required: schema version, event ID, even
 
 Confidence is semantic: `exact` is explicitly named by a native integration; `correlated` joins matching pre/post evidence; `observed` is a direct filesystem/Git fact; `inferred` is a heuristic. Consumers must not promote confidence.
 
-Commands are redacted before persistence. Paths are normalized to the selected project root. Numeric durations, deltas, and byte sizes are non-negative. Payload and string limits are enforced at ingress in addition to schema validation.
+Raw commands are discarded before persistence; command and tool labels are single-line, bounded, and redact common credential forms. Paths, including `secondary_paths`, are normalized to the selected project root and rejected if an existing symbolic link escapes it. Numeric durations, deltas, byte sizes, process IDs, and monotonic timestamps are non-negative. Payload, string, metadata-size, metadata-depth, and metadata-entry limits are enforced at ingress in addition to schema validation.
+
+Normalized metadata is intentionally narrow. Consumers retain only deterministic reducer keys such as `access_sequence`, `secondary_paths`, hook/evidence provenance, work source/confidence, bounded drop/coalescing counts, and wrapper exit/signal state. Unknown protocol fields remain wire-compatible, but unknown metadata is not retained by the application.

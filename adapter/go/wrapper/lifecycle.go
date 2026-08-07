@@ -1,10 +1,9 @@
 package wrapper
 
 import (
-	"path/filepath"
-	"strings"
 	"time"
 
+	"github.com/greadee/agent-action-visualizer/internal/security"
 	protocol "github.com/greadee/agent-action-visualizer/protocol/go"
 )
 
@@ -84,12 +83,5 @@ func baseEvent(observation Observation, eventID string, eventType protocol.Event
 }
 
 func commandLabel(command string) string {
-	label := strings.TrimSpace(filepath.Base(command))
-	if label == "" || label == "." {
-		return "command"
-	}
-	if len(label) > 128 {
-		return label[:128]
-	}
-	return label
+	return security.CommandLabel(command, 128)
 }

@@ -321,6 +321,30 @@ func TestInstallRefusesUnmanagedBackup(t *testing.T) {
 	}
 }
 
+func TestInstallRefusesManagedConfigurationSymlink(t *testing.T) {
+	root := t.TempDir()
+	outside := filepath.Join(t.TempDir(), "outside-hooks.json")
+	original := []byte(`{"description":"outside must remain unchanged"}`)
+	if err := os.WriteFile(outside, original, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	configDir := filepath.Join(root, ".codex")
+	if err := os.MkdirAll(configDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	configPath := filepath.Join(configDir, "hooks.json")
+	if err := os.Symlink(outside, configPath); err != nil {
+		t.Skipf("symbolic links unavailable: %v", err)
+	}
+	if _, err := NewManager().Install(context.Background(), Options{ProjectRoot: root, HookBinary: writeFakeHook(t)}); err == nil {
+		t.Fatal("installer followed a managed configuration symlink")
+	}
+	if !bytes.Equal(original, mustRead(t, outside)) {
+		t.Fatal("installer changed the symlink target")
+	}
+	assertMissing(t, filepath.Join(configDir, ".aav-codex-install.json"))
+}
+
 func TestInstallAndUninstallRefuseUnmanagedBinary(t *testing.T) {
 	root := t.TempDir()
 	options := Options{ProjectRoot: root, HookBinary: writeFakeHook(t)}

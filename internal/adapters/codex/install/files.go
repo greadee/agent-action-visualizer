@@ -10,12 +10,15 @@ import (
 )
 
 func readOptional(path string, limit int64) ([]byte, bool, error) {
-	info, err := os.Stat(path)
+	info, err := os.Lstat(path)
 	if errors.Is(err, os.ErrNotExist) {
 		return nil, false, nil
 	}
 	if err != nil {
 		return nil, false, err
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		return nil, false, fmt.Errorf("%s is a symbolic link", path)
 	}
 	if !info.Mode().IsRegular() {
 		return nil, false, fmt.Errorf("%s is not a regular file", path)

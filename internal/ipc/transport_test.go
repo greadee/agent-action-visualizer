@@ -3,7 +3,9 @@ package ipc
 import (
 	"context"
 	"encoding/binary"
+	"encoding/json"
 	"io"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -111,6 +113,77 @@ func TestClientRejectsInvalidEvent(t *testing.T) {
 	if err := NewClient(testEndpoint(t.Name())).Send(ctx, []protocol.Event{{}}); err == nil {
 		t.Fatal("expected invalid event error")
 	}
+}
+
+func TestServerRejectsInvalidBatchAtomically(t *testing.T) {
+	endpoint := testEndpoint(t.Name())
+	var submitted atomic.Int32
+	server := NewServer(endpoint, func(protocol.Event) bool { submitted.Add(1); return true })
+	if err := server.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer server.Close()
+	valid := validEvent()
+	invalid := validEvent()
+	invalid.EventID = ""
+	payload, err := json.Marshal(batch{Version: "1", Events: []protocol.Event{valid, invalid}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if acknowledged := sendRawFrame(t, endpoint, payload, uint32(len(payload))); acknowledged {
+		t.Fatal("invalid batch was acknowledged")
+	}
+	if submitted.Load() != 0 {
+		t.Fatalf("invalid batch was partially submitted: %d", submitted.Load())
+	}
+}
+
+func TestServerRejectsZeroTruncatedAndWrongVersionFrames(t *testing.T) {
+	for name, test := range map[string]struct {
+		payload  []byte
+		declared uint32
+	}{
+		"zero":          {declared: 0},
+		"truncated":     {payload: []byte(`{"version":"1"}`), declared: 100},
+		"wrong version": {payload: []byte(`{"version":"2","events":[]}`), declared: uint32(len(`{"version":"2","events":[]}`))},
+	} {
+		t.Run(name, func(t *testing.T) {
+			endpoint := testEndpoint(t.Name())
+			server := NewServer(endpoint, func(protocol.Event) bool { t.Fatal("invalid frame was submitted"); return false })
+			if err := server.Start(); err != nil {
+				t.Fatal(err)
+			}
+			defer server.Close()
+			if acknowledged := sendRawFrame(t, endpoint, test.payload, test.declared); acknowledged {
+				t.Fatal("invalid frame was acknowledged")
+			}
+		})
+	}
+}
+
+func sendRawFrame(t *testing.T, endpoint string, payload []byte, declared uint32) bool {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	connection, err := dialLocal(ctx, endpoint)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer connection.Close()
+	header := make([]byte, 4)
+	binary.BigEndian.PutUint32(header, declared)
+	if err := writeAll(connection, header); err != nil {
+		t.Fatal(err)
+	}
+	if len(payload) > 0 {
+		if err := writeAll(connection, payload); err != nil {
+			t.Fatal(err)
+		}
+	}
+	_ = connection.SetReadDeadline(time.Now().Add(400 * time.Millisecond))
+	response := make([]byte, 1)
+	_, err = io.ReadFull(connection, response)
+	return err == nil && response[0] == ack[0]
 }
 
 func BenchmarkLocalRoundTrip(b *testing.B) {
