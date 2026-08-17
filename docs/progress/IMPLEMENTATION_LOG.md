@@ -537,3 +537,18 @@
 - Windows packaging CI fix SHA: `bbc2d80a87d78a5d5d07cbd684e4fa047a9922dd`; exposes Chocolatey's NSIS installation to the Windows runner `PATH` and verifies `makensis` before Wails invokes the installer build.
 - Known limitations: NSIS is not installed on this Windows host, so installer generation is verified by the new Windows CI job rather than locally; Linux and macOS packaging are native CI targets and remain unverified locally until their CI runs complete. Artifacts are unsigned and macOS builds are not notarized; signing and release publishing remain release-policy work.
 - Next slice: P10-S2 - Documentation / finish
+
+## P10-S2 - Documentation / finish
+
+- Phase: 10
+- Slice: P10-S2
+- Feature: Release-facing documentation completion and reconciliation
+- Action: Document and validate
+- Status: complete
+- Files changed: top-level README expansion; project-specific desktop README; new installation, user guide, replay/timeline, privacy, troubleshooting, known-limitations, and contributor guides; reconciled command surfaces and doc index links across the release-facing documentation set
+- Tests run: isolated command validation for `aav`, `aav-wrapper`, `aav-review-project`, and the project-scope Codex install/status/test/dry-run/uninstall lifecycle against a temporary repository under `.cache`; complete root and desktop Go tests/vet with a repository-local Go build cache; fresh frontend `npm.cmd ci`; slice-scoped Prettier checks for touched markdown; frontend ESLint, TypeScript, Vitest (59 tests), Vite production build; Wails 2.12.0 Windows production build; slice-scoped markdown link validation; and `git diff --check`
+- Visual or E2E validation: no user-facing runtime behavior changed beyond documentation. Validation focused on exact command execution and link integrity rather than browser scene review.
+- Benchmark result: not applicable; this slice changes documentation only
+- Commit SHA: `6590aa5e609fd97f5735f48e5371b85e92065965`
+- Known limitations: release documentation is validated against the current repository command surface and this Windows host. Linux and macOS package execution remain CI-only; the installed AppX Codex CLI on this host still returns `Access is denied` when invoked directly, so live authenticated Codex turns remain outside local terminal validation even though the documented hook lifecycle and installer paths are reproducibly validated
+- Next slice: P10-S3 - Release / validate
