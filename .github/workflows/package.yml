@@ -31,7 +31,9 @@ jobs:
       - run: go install github.com/wailsapp/wails/v2/cmd/wails@${{ env.WAILS_VERSION }}
       - id: version
         shell: pwsh
-        run: '"value=$(Get-Content VERSION -Raw).Trim()" >> $env:GITHUB_OUTPUT'
+        run: |
+          $value = (Get-Content VERSION -Raw).Trim()
+          "value=$value" >> $env:GITHUB_OUTPUT
       - shell: pwsh
         run: .\scripts\package.ps1 -Wails "$(go env GOPATH)\bin\wails.exe" -OutputDirectory "$env:RUNNER_TEMP\aav-package"
       - uses: actions/upload-artifact@v4
@@ -98,7 +100,7 @@ jobs:
             -ldflags "-X github.com/greadee/agent-action-visualizer/internal/buildinfo.Version=${version} -X github.com/greadee/agent-action-visualizer/internal/buildinfo.Commit=${commit} -X github.com/greadee/agent-action-visualizer/internal/buildinfo.BuildDate=${SOURCE_DATE_EPOCH}" \
             -o "agent-action-visualizer-v${version}-macos-universal"
           cd build/bin
-          ditto -c -k --sequesterRsrc --keepParent "agent-action-visualizer-v${version}-macos-universal.app" "agent-action-visualizer-v${version}-macos-universal.zip"
+          ditto -c -k --sequesterRsrc --keepParent "AgentActionVisualizer.app" "agent-action-visualizer-v${version}-macos-universal.zip"
           shasum -a 256 "agent-action-visualizer-v${version}-macos-universal.zip" > SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
         with:
