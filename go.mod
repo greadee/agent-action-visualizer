@@ -1,6 +1,6 @@
 module github.com/greadee/agent-action-visualizer
 
-go 1.26.3
+go 1.26.6
 
 require (
 	github.com/Microsoft/go-winio v0.6.2

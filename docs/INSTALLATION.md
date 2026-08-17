@@ -7,7 +7,7 @@ hook installation, and the generic wrapper entry point.
 
 Validated versions:
 
-- Go `1.26.3`
+- Go `1.26.6`
 - Node.js `22.22.3`
 - npm `10.9.8`
 - Wails `2.12.0`

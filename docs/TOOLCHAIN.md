@@ -4,7 +4,7 @@ Pinned on 2026-07-21 after checking official release and package metadata.
 
 | Component | Version | Compatibility evidence |
 | --- | --- | --- |
-| Go | 1.26.3 | Current Go release; Windows archive checksum verified before local use |
+| Go | 1.26.6 | Current Go release; Windows archive checksum verified before local use |
 | Wails | 2.12.0 | Current stable v2; v3 remains alpha |
 | Node.js | 22.22.3 | Satisfies Vite 8's `>=22.12` engine range |
 | React / React DOM | 19.2.8 | Satisfies React Three Fiber's `>=19 <19.3` peer range |

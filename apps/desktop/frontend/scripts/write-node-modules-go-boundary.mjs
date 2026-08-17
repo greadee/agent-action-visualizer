@@ -11,7 +11,7 @@ await writeFile(
   [
     'module github.com/greadee/agent-action-visualizer/apps/desktop/frontend/node_modules',
     '',
-    'go 1.26.3',
+    'go 1.26.6',
     '',
   ].join('\n'),
 )

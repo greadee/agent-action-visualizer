@@ -1,6 +1,6 @@
 module github.com/greadee/agent-action-visualizer/apps/desktop
 
-go 1.26.3
+go 1.26.6
 
 require (
 	github.com/greadee/agent-action-visualizer v0.0.0
