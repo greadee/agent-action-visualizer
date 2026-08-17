@@ -518,3 +518,19 @@
 - Known limitations: quarantined databases are preserved but not automatically repaired or merged into the replacement journal; the exact crash instant is unknowable, so stale active duration is conservatively capped at two minutes; events emitted while the collector is unavailable can be lost by design rather than retained in an unbounded adapter retry buffer; Linux reliability targets were cross-compiled but not executed on this Windows host, macOS remains unverified, and race builds remain unavailable because this host has CGO disabled and no C compiler; the upstream React Three Fiber `THREE.Clock` warning and one moderate npm advisory below the high-severity gate remain.
 - Phase summary: Phase 9 now combines bounded low-draw-call rendering and instrumentation, validated 100 through 20,000-node and 100,000-access scale behavior, hardened local trust and retention boundaries, and deterministic crash/reconnect recovery. The renderer remains inspectable under dense history; queues and payloads remain bounded; source contents and secrets remain excluded from persistence and diagnostics; and recovery cannot alter agent output, exit status, working files, or model context.
 - Next slice: P10-S1 - Packaging / build
+
+## P10-S1 - Packaging / build
+
+- Phase: 10
+- Slice: P10-S1
+- Feature: Reproducible native packaging and artifact delivery
+- Action: Implement and validate
+- Status: complete
+- Files changed: repository `VERSION` source; linker-injected build identity and `aav version` JSON; synchronized Wails product metadata; deterministic Windows package script with clean-tree protection, source timestamp, portable/NSIS artifact naming, and SHA-256 manifest; native Windows, Linux, and macOS packaging workflow; packaging target, generated-artifact ignore rule, version-consistency tests, and platform packaging guide
+- Tests run: complete root and desktop Go tests/vet and module verification; fresh `npm ci`; Prettier, ESLint, TypeScript, Vitest (59 tests), Vite production build; Wails 2.12.0 Windows production package; linker-injected `aav version` verification; packaging-script dry run; workflow/document/config Prettier validation; and `git diff --check`
+- Visual or E2E validation: Wails built the Windows/amd64 portable release executable from the finalized script with the configured version, output name, and injected identity. This slice changes packaging rather than visible application behavior, so no browser validation was required.
+- Benchmark result: not applicable; release packaging executes outside observation and visualization runtime paths.
+- Commit SHA: `284f27c9f5f1995b6148f1e95cc1ca137dc0b35a`
+- Packaging result: Windows/amd64 portable artifact `agent-action-visualizer-v0.1.0-windows-amd64.exe` (16,828,416 bytes) built locally with SHA-256 `da3df4d6b2d9185877cc4baf8976930bacc7ab67faa3b4c99821cf53017b3fc2`. The CI workflow builds the NSIS installer plus native Linux/amd64 and macOS/universal artifacts and publishes each with its checksum manifest.
+- Known limitations: NSIS is not installed on this Windows host, so installer generation is verified by the new Windows CI job rather than locally; Linux and macOS packaging are native CI targets and remain unverified locally until their CI runs complete. Artifacts are unsigned and macOS builds are not notarized; signing and release publishing remain release-policy work.
+- Next slice: P10-S2 - Documentation / finish
