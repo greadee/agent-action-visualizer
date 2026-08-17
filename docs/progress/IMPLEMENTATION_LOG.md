@@ -552,3 +552,22 @@
 - Commit SHA: `6590aa5e609fd97f5735f48e5371b85e92065965`
 - Known limitations: release documentation is validated against the current repository command surface and this Windows host. Linux and macOS package execution remain CI-only; the installed AppX Codex CLI on this host still returns `Access is denied` when invoked directly, so live authenticated Codex turns remain outside local terminal validation even though the documented hook lifecycle and installer paths are reproducibly validated
 - Next slice: P10-S3 - Release / validate
+
+## P10-S3 - Release / validate
+
+- Phase: 10
+- Slice: P10-S3
+- Feature: Final release validation, clean-clone verification, and release evidence
+- Action: Validate and harden
+- Status: local validation complete; remote CI and draft pull-request verification pending repository-authenticated access
+- Files changed: Go 1.26.6 security baseline across both modules, workspace, CI, packaging workflow, npm Go-boundary helper, and current setup documentation; deterministic LF checkout attributes for clean Windows clones; final release checklist; reconciled security/toolchain/limitations documentation; and README release-checklist entry
+- Tests run: Go 1.26.6 root and desktop `go mod verify`, complete tests, and vet; `go run golang.org/x/vuln/cmd/govulncheck@latest ./...` for both modules with no reachable vulnerabilities; fresh frontend `npm ci`; refreshed high-threshold npm audit with zero findings; Prettier, ESLint, TypeScript, Vitest (59 tests), and Vite production build; Wails 2.12.0 Windows production build; portable Windows package build from a fresh clone; source-content, secret, local-path, generated-output, and `git diff --check` audits
+- Visual or E2E validation: no runtime behavior changed during P10-S3. The clean clone rebuilt the production desktop application and portable artifact; representative browser scene, replay, filtering, analytics, Time/Work geometry, and dense-scale validation remain covered by the direct P5, P8, and P9 browser reviews
+- Benchmark result: not applicable; this release slice adds no runtime processing. The completed prior performance campaign remains recorded in P9-S1 and P9-S2
+- Security remediation: Go 1.26.3 exposed five reachable standard-library vulnerabilities found by the release scan; all are fixed by the now-pinned Go 1.26.6 toolchain. The final scan reports no reachable vulnerabilities, and the npm high-severity audit reports zero findings
+- Clean-clone result: a first normal Windows clone exposed CRLF checkout formatting failures under `core.autocrlf=true`; `.gitattributes` now enforces LF repository text. A second clean clone at `fb04f32c6a4d628a29819625f64faf4660febe22` passed root, frontend, desktop, Wails, and portable packaging validation
+- Packaging result: the clean clone produced `agent-action-visualizer-v0.1.0-windows-amd64.exe` (16,829,440 bytes), SHA-256 `fb00223bf7a18d0da62657c3087d0de84bc5977e1c9f62791a2c6b63a6ea5a6f`, using Wails 2.12.0 with injected version and commit identity
+- Implementation SHAs: `82f888be3c0226bfb3cb52f783231df20f02fb51` patches the Go security baseline; `fb04f32c6a4d628a29819625f64faf4660febe22` fixes cross-platform clean-clone line endings; `cdf93ca5b4e4a669336dd848f6fc343852bfdc59` records release evidence
+- Known limitations: Linux and macOS packages remain native CI-only and unexecuted on this Windows host; artifacts remain unsigned and macOS is not notarized; NSIS installer generation remains CI-only because NSIS is absent locally; the installed AppX Codex CLI still cannot run an authenticated live session on this host; same-user IPC trust, redaction heuristics, and the upstream React Three Fiber `THREE.Clock` warning remain documented residual boundaries
+- Phase summary: Phases 0 through 10 now deliver a deterministic, local-only agent-action visualizer with versioned bounded ingestion, SQLite sessions, stable graph and activity geometry, Time/Work modes, Codex and generic failure-open adapters, replay, filters, analytics, performance scaling, security/recovery hardening, packaging, and release documentation. The MVP is complete. It is production-ready for the validated Windows boundary once the final remote CI gates pass; unverified platforms and signing/notarization limitations remain explicitly documented
+- Next slice: none; await release-owner direction after remote verification
