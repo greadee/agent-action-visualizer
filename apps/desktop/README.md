@@ -1,19 +1,39 @@
-# README
+# Desktop application
 
-## About
+This directory contains the Wails desktop shell that hosts the local React and
+Three.js frontend for Agent Action Visualizer.
 
-This is the official Wails React-TS template.
+## Development
 
-You can configure the project by editing `wails.json`. More information about the project settings can be found
-here: https://wails.io/docs/reference/project-config
+Install frontend dependencies first:
 
-## Live Development
+```powershell
+cd frontend
+npm ci
+cd ..
+```
 
-To run in live development mode, run `wails dev` in the project directory. This will run a Vite development
-server that will provide very fast hot reload of your frontend changes. If you want to develop in a browser
-and have access to your Go methods, there is also a dev server that runs on http://localhost:34115. Connect
-to this in your browser, and you can call your Go code from devtools.
+Run the desktop application:
 
-## Building
+```powershell
+wails dev
+```
 
-To build a redistributable, production mode package, use `wails build`.
+Build a production desktop binary:
+
+```powershell
+wails build
+```
+
+## Scope
+
+The desktop application owns:
+
+- local collector startup and shutdown
+- Wails bindings and event publication
+- SQLite-backed replay persistence wiring
+- renderer resync and reconnect behavior
+- the local React/Three.js experience
+
+Repository-wide contracts and user-facing setup live in the root
+[README.md](../../README.md) and the `docs/` directory.
