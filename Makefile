@@ -2,7 +2,7 @@ GO ?= go
 NPM ?= npm
 WAILS ?= wails
 
-.PHONY: test lint typecheck build desktop
+.PHONY: test lint typecheck build desktop package-windows
 
 test:
 	$(GO) test ./...
@@ -22,3 +22,6 @@ build:
 
 desktop:
 	cd apps/desktop && $(WAILS) build
+
+package-windows:
+	powershell -ExecutionPolicy Bypass -File scripts/package.ps1 -Wails $(WAILS)

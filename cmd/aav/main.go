@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	codexinstall "github.com/greadee/agent-action-visualizer/internal/adapters/codex/install"
+	"github.com/greadee/agent-action-visualizer/internal/buildinfo"
 	protocol "github.com/greadee/agent-action-visualizer/protocol/go"
 )
 
@@ -25,6 +26,8 @@ func run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 		return 2
 	}
 	switch args[0] {
+	case "version":
+		return runVersion(args[1:], stdout, stderr)
 	case "mock-event":
 		return runMockEvent(args[1:], stdin, stdout, stderr)
 	case "codex":
@@ -33,6 +36,18 @@ func run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 		printUsage(stderr)
 		return 2
 	}
+}
+
+func runVersion(args []string, stdout, stderr io.Writer) int {
+	if len(args) != 0 {
+		fmt.Fprintln(stderr, "usage: aav version")
+		return 2
+	}
+	if err := json.NewEncoder(stdout).Encode(buildinfo.Current()); err != nil {
+		fmt.Fprintln(stderr, err)
+		return 1
+	}
+	return 0
 }
 
 func runMockEvent(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
@@ -168,7 +183,7 @@ func printResult(writer io.Writer, result codexinstall.Result) {
 }
 
 func printUsage(writer io.Writer) {
-	fmt.Fprintln(writer, "usage: aav <mock-event|codex> [arguments]")
+	fmt.Fprintln(writer, "usage: aav <version|mock-event|codex> [arguments]")
 }
 
 func printCodexUsage(writer io.Writer) {

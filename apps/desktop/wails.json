@@ -9,5 +9,12 @@
   "author": {
     "name": "greadee",
     "email": ""
+  },
+  "info": {
+    "companyName": "greadee",
+    "productName": "Agent Action Visualizer",
+    "productVersion": "0.1.0",
+    "copyright": "Copyright (c) 2026 greadee",
+    "comments": "Deterministic local agent-action visualization"
   }
 }

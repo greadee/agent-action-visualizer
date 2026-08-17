@@ -1,6 +1,7 @@
 # Go
 /bin/
 /build/
+/artifacts/
 *.test
 *.out
 
