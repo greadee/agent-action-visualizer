@@ -28,6 +28,10 @@ jobs:
           cache: npm
           cache-dependency-path: apps/desktop/frontend/package-lock.json
       - run: choco install nsis --no-progress --yes
+      - shell: pwsh
+        run: |
+          "C:\Program Files (x86)\NSIS" >> $env:GITHUB_PATH
+          & "C:\Program Files (x86)\NSIS\makensis.exe" /VERSION
       - run: go install github.com/wailsapp/wails/v2/cmd/wails@${{ env.WAILS_VERSION }}
       - id: version
         shell: pwsh
