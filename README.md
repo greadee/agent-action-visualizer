@@ -130,6 +130,7 @@ contracts and failure-open guarantees.
 - [Reliability and recovery](docs/RELIABILITY.md)
 - [Rendering performance](docs/PERFORMANCE.md)
 - [Packaging](docs/PACKAGING.md)
+- [Release checklist](docs/RELEASE_CHECKLIST.md)
 - [Codex compatibility evidence](docs/CODEX_COMPATIBILITY.md)
 - [Codex hook behavior](docs/CODEX_HOOK.md)
 - [Codex reproducible end-to-end validation](docs/CODEX_E2E.md)

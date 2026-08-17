@@ -34,8 +34,8 @@ This file records the current release boundary as of August 17, 2026.
 
 - Same-user processes remain inside the current local IPC trust boundary.
 - Secret redaction is defense-in-depth rather than a universal detector.
-- `govulncheck` was not available on this host and remains a release-validation
-  task for a network-authorized environment.
+- Release validation refreshes npm and Go vulnerability data; future releases
+  must repeat those network-backed checks.
 
 ## Rendering and runtime
 
