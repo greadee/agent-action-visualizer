@@ -40,7 +40,7 @@ jobs:
           "value=$value" >> $env:GITHUB_OUTPUT
       - shell: pwsh
         run: .\scripts\package.ps1 -Wails "$(go env GOPATH)\bin\wails.exe" -OutputDirectory "$env:RUNNER_TEMP\aav-package"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: agent-action-visualizer-v${{ steps.version.outputs.value }}-windows-amd64
           path: ${{ runner.temp }}/aav-package
@@ -73,7 +73,7 @@ jobs:
             -o "agent-action-visualizer-v${version}-linux-amd64"
           cd build/bin
           sha256sum "agent-action-visualizer-v${version}-linux-amd64" > SHA256SUMS.txt
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: agent-action-visualizer-v${{ steps.version.outputs.value }}-linux-amd64
           path: apps/desktop/build/bin
@@ -106,7 +106,7 @@ jobs:
           cd build/bin
           ditto -c -k --sequesterRsrc --keepParent "AgentActionVisualizer.app" "agent-action-visualizer-v${version}-macos-universal.zip"
           shasum -a 256 "agent-action-visualizer-v${version}-macos-universal.zip" > SHA256SUMS.txt
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: agent-action-visualizer-v${{ steps.version.outputs.value }}-macos-universal
           path: apps/desktop/build/bin
