@@ -38,11 +38,13 @@ This checklist records the P10-S3 release-candidate validation performed on
 
 ## Remote release gates
 
-- [ ] Push the final release-validation and implementation-log commits.
-- [ ] Confirm the push and pull-request GitHub Actions workflows pass for the
-      final head.
-- [ ] Open a draft pull request from `codex/initial-build` into `main`.
-- [ ] Keep the draft unmerged and do not publish a release artifact.
+- [x] Pushed the final release-validation and implementation-log commits at
+      `4d999d4d8634bf695f5f0a0836ef7aff4b020fee`.
+- [x] Confirmed the GitHub Actions workflows pass for that release-candidate
+      head: CI run `32042989939` and package run `32042989951` both succeeded.
+- [x] Confirmed draft [PR #1](https://github.com/greadee/agent-action-visualizer/pull/1)
+      from `codex/initial-build` into `main`.
+- [x] Kept the draft unmerged and did not publish a release artifact.
 
 ## Release boundary
 
