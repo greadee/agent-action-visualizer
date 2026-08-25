@@ -1,0 +1,13 @@
+CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS projects (id TEXT PRIMARY KEY, root TEXT NOT NULL UNIQUE, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS nodes (id TEXT PRIMARY KEY, project_id TEXT NOT NULL, path TEXT NOT NULL, kind TEXT NOT NULL, deleted_at TEXT, metadata_json TEXT NOT NULL DEFAULT '{}', UNIQUE(project_id, path), FOREIGN KEY(project_id) REFERENCES projects(id));
+CREATE TABLE IF NOT EXISTS node_aliases (node_id TEXT NOT NULL, path TEXT NOT NULL, valid_from TEXT NOT NULL, valid_to TEXT, PRIMARY KEY(node_id, path, valid_from), FOREIGN KEY(node_id) REFERENCES nodes(id));
+CREATE TABLE IF NOT EXISTS sessions (id TEXT PRIMARY KEY, project_id TEXT, started_at TEXT NOT NULL, stopped_at TEXT, status TEXT NOT NULL, state_json TEXT NOT NULL, FOREIGN KEY(project_id) REFERENCES projects(id));
+CREATE TABLE IF NOT EXISTS agents (id TEXT PRIMARY KEY, session_id TEXT NOT NULL, agent_type TEXT NOT NULL, adapter_id TEXT, metadata_json TEXT NOT NULL DEFAULT '{}', FOREIGN KEY(session_id) REFERENCES sessions(id));
+CREATE TABLE IF NOT EXISTS events (sequence INTEGER PRIMARY KEY AUTOINCREMENT, event_id TEXT NOT NULL UNIQUE, session_id TEXT, timestamp TEXT NOT NULL, event_type TEXT NOT NULL, path TEXT, confidence TEXT NOT NULL, event_json TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS events_session_sequence ON events(session_id, sequence);
+CREATE INDEX IF NOT EXISTS events_path_timestamp ON events(path, timestamp);
+CREATE TABLE IF NOT EXISTS access_intervals (session_id TEXT NOT NULL, sequence INTEGER NOT NULL, node_id TEXT, path TEXT NOT NULL, started_at TEXT NOT NULL, ended_at TEXT, duration_ms INTEGER, interval_json TEXT NOT NULL, PRIMARY KEY(session_id, sequence));
+CREATE TABLE IF NOT EXISTS graph_snapshots (project_id TEXT NOT NULL, revision INTEGER NOT NULL, created_at TEXT NOT NULL, snapshot_json TEXT NOT NULL, PRIMARY KEY(project_id, revision));
+CREATE TABLE IF NOT EXISTS settings (scope TEXT NOT NULL, key TEXT NOT NULL, value_json TEXT NOT NULL, updated_at TEXT NOT NULL, PRIMARY KEY(scope, key));
+CREATE TABLE IF NOT EXISTS diagnostics (id INTEGER PRIMARY KEY AUTOINCREMENT, timestamp TEXT NOT NULL, category TEXT NOT NULL, duration_us INTEGER, details_json TEXT NOT NULL DEFAULT '{}');

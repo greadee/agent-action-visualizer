@@ -1,6 +1,7 @@
 # Go
 /bin/
 /build/
+/artifacts/
 *.test
 *.out
 
@@ -8,6 +9,7 @@
 apps/desktop/build/bin/
 apps/desktop/frontend/dist/
 apps/desktop/frontend/wailsjs/
+apps/desktop/frontend/package.json.md5
 
 # JavaScript
 node_modules/
@@ -31,7 +33,15 @@ coverage/
 Thumbs.db
 
 # Diagnostics and temporary source snapshots
+.cache/
 tmp/
 temp/
 *.log
 *.snapshot
+
+# Project-local Codex installer runtime state
+.codex/aav/
+.codex/.aav-codex-install.json
+.codex/hooks.json.aav-backup
+.codex/hooks.json.aav-swap
+.codex/.hooks.json.aav-tmp-*

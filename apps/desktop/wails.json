@@ -1,0 +1,20 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "AgentActionVisualizer",
+  "outputfilename": "agent-action-visualizer",
+  "frontend:install": "npm ci",
+  "frontend:build": "npm run build",
+  "frontend:dev:watcher": "npm run dev",
+  "frontend:dev:serverUrl": "auto",
+  "author": {
+    "name": "greadee",
+    "email": ""
+  },
+  "info": {
+    "companyName": "greadee",
+    "productName": "Agent Action Visualizer",
+    "productVersion": "0.1.0",
+    "copyright": "Copyright (c) 2026 greadee",
+    "comments": "Deterministic local agent-action visualization"
+  }
+}

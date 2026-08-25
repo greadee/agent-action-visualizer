@@ -1,0 +1,12 @@
+{
+  "session_id": "claude-session-example",
+  "cwd": "/workspace",
+  "hook_event_name": "PostToolUse",
+  "tool_name": "Write",
+  "tool_use_id": "tool-example",
+  "tool_input": {
+    "file_path": "/workspace/src/example.txt",
+    "content": "<redacted>"
+  },
+  "tool_response": "<redacted>"
+}

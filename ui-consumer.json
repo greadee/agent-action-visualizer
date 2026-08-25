@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "application": "agent-action-visualizer",
+  "react": "19",
+  "sharedUi": "0.1.0",
+  "transport": {
+    "kind": "vendored-tarballs",
+    "path": "apps/desktop/frontend/vendor/prool-ui",
+    "upstreamCommit": "510c06e"
+  },
+  "packages": {
+    "@prool-ui/tokens": "0.1.0",
+    "@prool-ui/themes": "0.1.0",
+    "@prool-ui/react": "0.1.0"
+  },
+  "theme": {
+    "base": "dark",
+    "extension": null
+  },
+  "components": ["SegmentedControl", "VisuallyHidden"],
+  "adapters": ["src/App.tsx", "src/scene/GraphLegend.tsx"],
+  "temporaryOverrides": [],
+  "pendingMigrations": []
+}

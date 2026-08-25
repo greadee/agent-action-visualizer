@@ -1,0 +1,76 @@
+# Git involvement and activity geometry
+
+## Visual contract
+
+The project root stays at the origin. Every other project node is normalized onto a shell with radius `7.0`; directory depth no longer changes distance from the center.
+
+Nodes are grouped by their most recent Git commit. Commit groups are ordered newest-first and their centers are distributed across the sphere using a deterministic golden-angle sequence. Nodes within a group receive a small deterministic tangent offset, so files touched by the same latest commit remain visually adjacent without overlapping at one coordinate.
+
+The layout is deterministic for the same history. A new latest commit intentionally recomputes group centers so the visual grouping continues to describe current involvement rather than preserving stale coordinates.
+
+File activity starts at the file node and extends radially outward. The endpoint is the edit point. Directories and the root do not receive edit-point extrusions.
+
+## Session access points
+
+Each access interval also receives a deterministic point on the outward-facing node surface. The anchor uses a stable golden-angle Fibonacci disk indexed by that node's access ordinal, so adding later accesses never moves an earlier point. A node with dense session history renders the newest 16 intervals individually and compacts older intervals into at most eight counted markers; see `docs/ACCESS_POINTS.md` for the exact aggregation contract.
+
+For the selected Time or Work value `v`, relative to the current visual cap
+`max`, the renderer uses either linear or logarithmic scaling:
+
+```text
+linear ratio = v / max
+logarithmic ratio = log(1 + v) / log(1 + max)
+length = minimum_visible_length + (maximum_length - minimum_visible_length) * ratio
+```
+
+The control panel offers linear and logarithmic scale selection plus a
+mode-specific visual cap. Time caps are 15 seconds, 1 minute, or 2 minutes;
+work caps are 100, 1,000, or 10,000 lines. The cap bounds visual geometry only:
+tooltips and the inspector retain exact duration and `+N / -N` evidence.
+Zero or missing agent-reported values produce no extrusion. This avoids
+presenting inferred Git data as elapsed time or work.
+
+## Data authority
+
+Git history provides:
+
+- latest commit and timestamp;
+- latest-event summary;
+- commit-touch access count;
+- latest-involvement cluster;
+- `git commit` as an observed tool plus explicit `[tool:name]` commit annotations.
+
+Import is bounded to the 5,000 most recent commits. Inspector access counts therefore describe commit touches inside that explicit history window. Agent report paths must be project-relative and all numeric work values must be non-negative.
+
+Agents provide `.aav/activity-v1.json` with total duration, lines added/deleted, recent tools, and session identifiers. A report has this shape:
+
+```json
+{
+  "schema_version": 1,
+  "files": {
+    "src/ui/Graph.tsx": {
+      "total_time_ms": 1140000,
+      "lines_added": 176,
+      "lines_deleted": 45,
+      "recent_tools": ["apply_patch", "codex"],
+      "session_history": ["ui-build", "activity-polish"]
+    }
+  }
+}
+```
+
+The scanner excludes `.aav` from graph nodes. Source contents are never read by history enrichment.
+
+## Review project
+
+Generate a clean repository with controlled commit cohorts and agent activity:
+
+```powershell
+go run ./cmd/aav-review-project -out C:\tmp\aav-extrusion-review
+```
+
+Run the desktop app, enter the generated path, and select **Load project**. In
+development mode, use the duration, work, and dense review batches to inspect
+short, long, active, clamped, addition, deletion, mixed, unknown, binary, and
+dense access states. Switching Time and Work preserves each access anchor and
+never changes the node shell.
