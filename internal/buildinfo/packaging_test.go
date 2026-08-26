@@ -34,4 +34,24 @@ func TestCheckedInReleaseMetadataIsAligned(t *testing.T) {
 	if config.Info.ProductVersion != value {
 		t.Fatalf("wails productVersion = %q, VERSION = %q", config.Info.ProductVersion, value)
 	}
+
+	windowsPayload, err := os.ReadFile(filepath.Join(root, "apps", "desktop", "build", "windows", "info.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var windowsInfo struct {
+		Fixed map[string]string            `json:"fixed"`
+		Info  map[string]map[string]string `json:"info"`
+	}
+	if err := json.Unmarshal(windowsPayload, &windowsInfo); err != nil {
+		t.Fatal(err)
+	}
+	const productVersionTemplate = "{{.Info.ProductVersion}}"
+	if windowsInfo.Fixed["file_version"] != productVersionTemplate || windowsInfo.Fixed["product_version"] != productVersionTemplate {
+		t.Fatalf("Windows fixed version metadata is not aligned: %#v", windowsInfo.Fixed)
+	}
+	english, ok := windowsInfo.Info["0409"]
+	if !ok || english["ProductVersion"] != productVersionTemplate || english["FileVersion"] != productVersionTemplate || english["ProductName"] != "{{.Info.ProductName}}" {
+		t.Fatalf("Windows English version strings are not configured: %#v", windowsInfo.Info)
+	}
 }
