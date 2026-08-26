@@ -43,6 +43,75 @@ func TestLoadAndRefreshProject(t *testing.T) {
 	}
 }
 
+func TestOpenProjectValidatesUserSelectedRepository(t *testing.T) {
+	repository := t.TempDir()
+	if err := os.Mkdir(filepath.Join(repository, ".git"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(repository, "README.md"), []byte("fixture"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	filePath := filepath.Join(t.TempDir(), "not-a-folder.txt")
+	if err := os.WriteFile(filePath, []byte("fixture"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	nonRepository := t.TempDir()
+	tests := []struct {
+		name string
+		path string
+		want string
+	}{
+		{name: "empty", path: "", want: "choose a local Git repository"},
+		{name: "missing", path: filepath.Join(t.TempDir(), "missing"), want: "was not found"},
+		{name: "file", path: filePath, want: "is not a folder"},
+		{name: "non repository", path: nonRepository, want: "is not a Git repository"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			app := newTestApp(t)
+			if _, err := app.OpenProject(test.path); err == nil || !strings.Contains(err.Error(), test.want) {
+				t.Fatalf("OpenProject(%q) error = %v, want %q", test.path, err, test.want)
+			}
+		})
+	}
+	app := newTestApp(t)
+	opened, err := app.OpenProject(repository)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if opened.Root != filepath.Clean(repository) || len(opened.Graph.Nodes) != 2 {
+		t.Fatalf("opened repository = %#v", opened)
+	}
+}
+
+func TestDisconnectedCollectorStillLoadsStaticProject(t *testing.T) {
+	endpoint := desktopTestEndpoint(t.Name())
+	owner := newTestApp(t)
+	owner.ipcEndpoint = endpoint
+	owner.startCollector()
+	if owner.Health()["collector"] != "ready" {
+		t.Fatalf("owner health = %#v", owner.Health())
+	}
+
+	repository := t.TempDir()
+	if err := os.Mkdir(filepath.Join(repository, ".git"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(repository, "main.go"), []byte("package main"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	disconnected := newTestApp(t)
+	disconnected.ipcEndpoint = endpoint
+	disconnected.startCollector()
+	if disconnected.Health()["collector"] != "unavailable" {
+		t.Fatalf("disconnected health = %#v", disconnected.Health())
+	}
+	opened, err := disconnected.OpenProject(repository)
+	if err != nil || len(opened.Graph.Nodes) != 2 {
+		t.Fatalf("static project load = %#v, error = %v", opened, err)
+	}
+}
+
 func TestPublishActivityEventMapsLiveFocusNodes(t *testing.T) {
 	root := t.TempDir()
 	for _, name := range []string{"main.go", "helper.go", "README.md"} {
