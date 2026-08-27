@@ -1,4 +1,8 @@
-import { accessAnchor } from './accessPoints'
+import {
+  accessAnchor,
+  accessAnchorOrdinal,
+  accessAnchorOrdinals,
+} from './accessPoints'
 import type { DurationScale } from './timeExtrusions'
 import type { GraphNode, TrailAccess, Vec3 } from '../graph/types'
 import { addScaled, normalize, subtract } from '../rendering/vectorMath'
@@ -86,6 +90,7 @@ export function buildWorkGeometry(
     ? Math.max(1, visualCapLines)
     : MAX_WORK_SCALE_LINES
   const nodesByID = new Map(nodes.map((node) => [node.id, node]))
+  const ordinals = accessAnchorOrdinals(trail)
   const accesses = [...trail]
     .sort((left, right) => left.sequence - right.sequence)
     .flatMap((access) => {
@@ -108,7 +113,10 @@ export function buildWorkGeometry(
   const markers: WorkMarker[] = []
 
   for (const { access, node } of accesses) {
-    const start = accessAnchor(node.position, Math.max(0, access.sequence - 1))
+    const start = accessAnchor(
+      node.position,
+      accessAnchorOrdinal(ordinals, access),
+    )
     const outward = outwardFromAnchor(start, node)
     const status = workStatus(access)
     if (status !== 'known') {

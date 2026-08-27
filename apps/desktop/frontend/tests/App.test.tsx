@@ -30,6 +30,12 @@ describe('App', () => {
     ).toBeTruthy()
     expect(screen.getByRole('checkbox', { name: 'Access points' })).toBeTruthy()
     expect(
+      screen.getByRole('checkbox', { name: 'Activity extrusions' }),
+    ).toBeTruthy()
+    expect(
+      screen.getByText(/No recorded access or edit points yet/),
+    ).toBeTruthy()
+    expect(
       screen.getByRole('button', { name: 'Add duration review batch' }),
     ).toBeTruthy()
     expect(
@@ -54,6 +60,7 @@ describe('App', () => {
     expect(screen.getByText('Generic wrapper')).toBeTruthy()
     expect(screen.getByText(/aav.exe codex install/)).toBeTruthy()
     expect(screen.getByText(/aav-wrapper.exe --project-root/)).toBeTruthy()
+    expect(screen.getByText(/stable point on its file sphere/)).toBeTruthy()
     const closeButton = screen.getByRole('button', {
       name: 'Close setup and help',
     })

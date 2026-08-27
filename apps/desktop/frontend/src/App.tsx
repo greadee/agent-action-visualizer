@@ -149,6 +149,7 @@ function App() {
         .slice(0, 5)
     : []
   const trailAccessCount = displayedFocus?.trail.length ?? 0
+  const visibleActivityCount = visibleFocus?.trail.length ?? 0
   const visibleTrailAccessCount = selectTrailAccesses(
     visibleFocus?.trail ?? [],
     {
@@ -607,9 +608,12 @@ function App() {
               <article>
                 <h3>Time and Work</h3>
                 <p>
-                  Time shows observed access duration. Work shows additions
-                  outward and deletions inward. Exact values remain in the
-                  inspector even when geometry is capped.
+                  Every recorded access or edit keeps a stable point on its file
+                  sphere. Time extends positive observed duration outward. Work
+                  extends additions outward and deletions inward from that same
+                  point. Turn Activity extrusions or Access points off to reduce
+                  render work. Exact values remain in the inspector even when
+                  geometry is capped.
                 </p>
               </article>
               <article>
@@ -1185,6 +1189,37 @@ function App() {
             Visual cap changes length only. Exact durations and line counts stay
             available in tooltips and the inspector.
           </p>
+          <div
+            className="activity-geometry"
+            role="group"
+            aria-labelledby="activity-geometry-label"
+          >
+            <p className="panel__label" id="activity-geometry-label">
+              ACTIVITY GEOMETRY
+            </p>
+            <p className="activity-geometry__status" role="status">
+              {visibleActivityCount === 0
+                ? 'No recorded access or edit points yet. The static graph remains available; use Setup & Help to configure a hook or wrapper.'
+                : `${visibleActivityCount.toLocaleString()} recorded access or edit ${visibleActivityCount === 1 ? 'point' : 'points'}. Time extends duration outward; Work renders additions outward and deletions inward.`}
+            </p>
+            <label className="toggle">
+              <input
+                type="checkbox"
+                checked={showActivity}
+                onChange={(event) => setShowActivity(event.target.checked)}
+              />
+              Activity extrusions
+            </label>
+            <label className="toggle">
+              <input
+                aria-label="Access points"
+                type="checkbox"
+                checked={showAccessPoints}
+                onChange={(event) => setShowAccessPoints(event.target.checked)}
+              />
+              Access points
+            </label>
+          </div>
           <div className="rule" />
           <label className="panel__label" htmlFor="layout-select">
             LAYOUT
@@ -1207,23 +1242,6 @@ function App() {
               onChange={(event) => setShowLabels(event.target.checked)}
             />
             Labels
-          </label>
-          <label className="toggle">
-            <input
-              type="checkbox"
-              checked={showActivity}
-              onChange={(event) => setShowActivity(event.target.checked)}
-            />
-            Activity extrusions
-          </label>
-          <label className="toggle">
-            <input
-              aria-label="Access points"
-              type="checkbox"
-              checked={showAccessPoints}
-              onChange={(event) => setShowAccessPoints(event.target.checked)}
-            />
-            Access points
           </label>
           <label className="toggle">
             <input

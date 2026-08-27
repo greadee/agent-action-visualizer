@@ -618,6 +618,22 @@ button:disabled {
   font-size: 10px;
   line-height: 1.45;
 }
+.activity-geometry {
+  margin-top: 14px;
+  border: 1px solid #243446;
+  border-radius: 9px;
+  padding: 12px;
+  background: #0b1520;
+}
+.activity-geometry .panel__label {
+  margin-top: 0;
+}
+.activity-geometry__status {
+  margin: 7px 0 2px;
+  color: #8da1af;
+  font-size: 10px;
+  line-height: 1.5;
+}
 .viewport {
   position: relative;
   min-height: 0;
