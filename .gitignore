@@ -7,6 +7,7 @@
 
 # Wails
 apps/desktop/build/bin/
+apps/desktop/build/windows/installer/package-tools/
 apps/desktop/frontend/dist/
 apps/desktop/frontend/wailsjs/
 apps/desktop/frontend/package.json.md5

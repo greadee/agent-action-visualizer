@@ -88,6 +88,10 @@ Section
 
     !insertmacro wails.files
 
+    File "/oname=aav.exe" "package-tools\aav.exe"
+    File "/oname=aav-codex-hook.exe" "package-tools\aav-codex-hook.exe"
+    File "/oname=aav-wrapper.exe" "package-tools\aav-wrapper.exe"
+
     CreateShortcut "$SMPROGRAMS\${INFO_PRODUCTNAME}.lnk" "$INSTDIR\${PRODUCT_EXECUTABLE}"
     CreateShortCut "$DESKTOP\${INFO_PRODUCTNAME}.lnk" "$INSTDIR\${PRODUCT_EXECUTABLE}"
 

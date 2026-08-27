@@ -45,6 +45,12 @@ $env:SOURCE_DATE_EPOCH = $sourceDateEpoch
 $assetStem = "agent-action-visualizer-v$Version-windows-amd64"
 $binaryName = "$assetStem.exe"
 $ldflags = "-X github.com/greadee/agent-action-visualizer/internal/buildinfo.Version=$Version -X github.com/greadee/agent-action-visualizer/internal/buildinfo.Commit=$commit -X github.com/greadee/agent-action-visualizer/internal/buildinfo.BuildDate=$sourceDateEpoch"
+$companionBuilds = @(
+    @{ Name = "aav.exe"; Package = "./cmd/aav" },
+    @{ Name = "aav-codex-hook.exe"; Package = "./cmd/aav-codex-hook" },
+    @{ Name = "aav-wrapper.exe"; Package = "./cmd/aav-wrapper" }
+)
+$installerToolDirectory = Join-Path $desktopRoot "build\windows\installer\package-tools"
 $arguments = @("build", "-clean", "-platform", "windows/amd64", "-trimpath", "-ldflags", $ldflags, "-o", $binaryName)
 if (-not $SkipInstaller) {
     $arguments += "-nsis"
@@ -53,11 +59,26 @@ if (-not $SkipInstaller) {
 if ($DryRun) {
     Write-Output "version=$Version"
     Write-Output "output=$OutputDirectory"
+    Write-Output "companions=$($companionBuilds.Name -join ',')"
     Write-Output "command=$Wails $($arguments -join ' ')"
     exit 0
 }
 
 New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
+New-Item -ItemType Directory -Path $installerToolDirectory -Force | Out-Null
+Push-Location $repositoryRoot
+try {
+    foreach ($companion in $companionBuilds) {
+        $companionPath = Join-Path $installerToolDirectory $companion.Name
+        & go build -trimpath -ldflags $ldflags -o $companionPath $companion.Package
+        if ($LASTEXITCODE -ne 0) {
+            throw "Companion build failed for $($companion.Name) with exit code $LASTEXITCODE."
+        }
+    }
+} finally {
+    Pop-Location
+}
+
 Push-Location $desktopRoot
 try {
     & $Wails @arguments
@@ -73,6 +94,9 @@ if (-not (Test-Path -LiteralPath $binaryPath)) {
     throw "Expected portable executable was not produced: $binaryName"
 }
 Copy-Item -LiteralPath $binaryPath -Destination (Join-Path $OutputDirectory $binaryName) -Force
+foreach ($companion in $companionBuilds) {
+    Copy-Item -LiteralPath (Join-Path $installerToolDirectory $companion.Name) -Destination (Join-Path $OutputDirectory $companion.Name) -Force
+}
 
 if (-not $SkipInstaller) {
     $installers = @(Get-ChildItem -LiteralPath (Join-Path $desktopRoot "build\bin") -Filter "*-installer.exe" -File)

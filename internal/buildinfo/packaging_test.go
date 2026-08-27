@@ -55,3 +55,24 @@ func TestCheckedInReleaseMetadataIsAligned(t *testing.T) {
 		t.Fatalf("Windows English version strings are not configured: %#v", windowsInfo.Info)
 	}
 }
+
+func TestWindowsPackageIncludesStandaloneSetupTools(t *testing.T) {
+	root := filepath.Join("..", "..")
+	packageScript, err := os.ReadFile(filepath.Join(root, "scripts", "package.ps1"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	installerScript, err := os.ReadFile(filepath.Join(root, "apps", "desktop", "build", "windows", "installer", "project.nsi"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, companion := range []string{"aav.exe", "aav-codex-hook.exe", "aav-wrapper.exe"} {
+		if !strings.Contains(string(packageScript), companion) {
+			t.Fatalf("portable package script does not include %s", companion)
+		}
+		if !strings.Contains(string(installerScript), `"package-tools\`+companion+`"`) {
+			t.Fatalf("NSIS installer does not include %s", companion)
+		}
+	}
+}
