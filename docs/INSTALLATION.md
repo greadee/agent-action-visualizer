@@ -1,7 +1,29 @@
 # Installation and setup
 
-This guide covers source builds, local desktop development, packaging, Codex
-hook installation, and the generic wrapper entry point.
+This guide covers the standalone Windows release, source builds, Codex hook
+installation, and the generic wrapper entry point.
+
+## Standalone Windows setup
+
+Download or extract the complete portable release set into one directory:
+
+- `agent-action-visualizer-v0.1.0-windows-amd64.exe`
+- `aav.exe`
+- `aav-codex-hook.exe`
+- `aav-wrapper.exe`
+- `SHA256SUMS.txt`
+
+Verify the checksums, then double-click the desktop executable. No Go, Node.js,
+npm, Wails, terminal, or source checkout is required. On first run, select
+**Choose folder...** and choose a local Git repository. The app builds the
+deterministic local graph even when no collector is connected.
+
+The current executables are unsigned, so Windows may show an unknown-publisher
+warning. Compare the release files with `SHA256SUMS.txt` before continuing.
+
+If an NSIS installer is supplied, it installs the same desktop executable and
+three adjacent setup tools. Installer lifecycle validation remains a release
+operator gate; see the [release checklist](RELEASE_CHECKLIST.md).
 
 ## Toolchain
 
@@ -64,7 +86,7 @@ The packaging script produces versioned Windows portable and, where the host
 supports it, NSIS installer artifacts together with a SHA-256 manifest. Linux
 and macOS packaging are validated in CI. See [PACKAGING.md](PACKAGING.md).
 
-## Build CLI tools
+## Build CLI tools from source
 
 From the repository root:
 
@@ -81,31 +103,32 @@ go build -o .cache\aav-bin\aav-wrapper.exe ./cmd/aav-wrapper
 
 ## Codex hook installation
 
-Project-local install:
+For the portable or installed release, run these commands from the directory
+containing the application. Project-local install:
 
 ```powershell
-.\.cache\aav-bin\aav.exe codex install --scope project --project C:\path\to\repository
+.\aav.exe codex install --scope project --project C:\path\to\repository
 ```
 
 User-level install:
 
 ```powershell
-.\.cache\aav-bin\aav.exe codex install --scope user
+.\aav.exe codex install --scope user
 ```
 
 Preview install or uninstall without writing:
 
 ```powershell
-.\.cache\aav-bin\aav.exe codex install --scope project --project C:\path\to\repository --dry-run
-.\.cache\aav-bin\aav.exe codex uninstall --scope project --project C:\path\to\repository --dry-run
+.\aav.exe codex install --scope project --project C:\path\to\repository --dry-run
+.\aav.exe codex uninstall --scope project --project C:\path\to\repository --dry-run
 ```
 
 Check, test, and remove an installation:
 
 ```powershell
-.\.cache\aav-bin\aav.exe codex status --scope project --project C:\path\to\repository
-.\.cache\aav-bin\aav.exe codex test --scope project --project C:\path\to\repository
-.\.cache\aav-bin\aav.exe codex uninstall --scope project --project C:\path\to\repository
+.\aav.exe codex status --scope project --project C:\path\to\repository
+.\aav.exe codex test --scope project --project C:\path\to\repository
+.\aav.exe codex uninstall --scope project --project C:\path\to\repository
 ```
 
 The installer writes only managed `hooks.json` entries and a managed hook
@@ -119,7 +142,7 @@ validation boundary.
 Windows:
 
 ```powershell
-.\.cache\aav-bin\aav-wrapper.exe --project-root C:\path\to\repository -- your-agent-command argument
+.\aav-wrapper.exe --project-root C:\path\to\repository -- your-agent-command argument
 ```
 
 macOS or Linux:
@@ -173,7 +196,9 @@ npm run build
 
 ## Verified platform boundary
 
-- Windows desktop development and packaging are validated locally.
+- Windows desktop development and portable packaging are validated locally.
+- NSIS installer construction and lifecycle testing were unavailable locally.
+- Release executables are unsigned.
 - Linux and macOS packaging are validated in CI, not on this host.
 - The AppX-installed Codex CLI on this Windows host still returns
   `Access is denied` when invoked directly, so live authenticated Codex turns
