@@ -88,7 +88,7 @@ generated package-helper directory is ignored.
 
 ## Artifact record
 
-The exact portable release set built from the clean clone is:
+The exact portable release set built locally from the clean clone is:
 
 | Artifact                                           |      Bytes | SHA-256                                                            |
 | -------------------------------------------------- | ---------: | ------------------------------------------------------------------ |
@@ -97,6 +97,23 @@ The exact portable release set built from the clean clone is:
 | `aav-codex-hook.exe`                               |  4,150,272 | `dd800b888c5d7350d1a5f746dfbd8b4b768d7c4207d0f0b0a7e68de28051429d` |
 | `aav-wrapper.exe`                                  |  5,137,920 | `17e672d075cd07223e705ac300ecdcf9373c74a42f8cbb8e02f01c2946d9ddc0` |
 | `SHA256SUMS.txt`                                   |        360 | `e0214bd728e72bfb7ad9ac84fe6d3a9f49c60e5cc4e52000178666bc28f5b32c` |
+
+Windows package workflow run
+[`33031924687`](https://github.com/greadee/agent-action-visualizer/actions/runs/33031924687)
+also completed successfully at the same implementation commit. Its downloaded
+artifact `agent-action-visualizer-v0.1.0-windows-amd64` contained:
+
+| Artifact                                                     |      Bytes | SHA-256                                                            |
+| ------------------------------------------------------------ | ---------: | ------------------------------------------------------------------ |
+| `agent-action-visualizer-v0.1.0-windows-amd64.exe`           | 16,845,312 | `76914ef3767759753a769943d3f7da21f8dc013aaa09da572fbfab96f5cdf26f` |
+| `agent-action-visualizer-v0.1.0-windows-amd64-installer.exe` | 16,382,590 | `c4877b196264c3003068cda8a3d2145dc5f5aebb8288846f67ee183bec878ea4` |
+| `aav.exe`                                                    |  4,583,936 | `ec5a5c8b9416fea6386537582743a60cc0ce1d10b65a5f7efdb0d442195ea66c` |
+| `aav-codex-hook.exe`                                         |  4,150,272 | `1f3a7ba2be5cef5615685cf86b472c441587cf33a6a07601d4af7a87e4e794fc` |
+| `aav-wrapper.exe`                                            |  5,137,920 | `1c852a137475717b570387e22c328de99761f3c1aebc8225cfd949fe73e07084` |
+| `SHA256SUMS.txt`                                             |        486 | `720e9d4a7c1dea961b4517901fe584fc542c43960874c0fe0b0e5706c75c6cf7` |
+
+The workflow manifest matched all five executable hashes. Authenticode reported
+`NotSigned` for every executable.
 
 ## Desktop and visual validation
 
@@ -143,10 +160,13 @@ choice inside the real dialog was not automated.
 - The portable release set was built and the preceding identical application
   code was directly exercised without developer tooling. The exact-final repeat
   limitation is recorded above.
-- NSIS was unavailable locally, so no local installer artifact was built and no
-  install/launch/uninstall/reinstall lifecycle was directly exercised. The
-  packaging workflow builds the same installer on a Windows CI runner when CI
-  is green; that validates construction, not an interactive lifecycle.
+- NSIS was unavailable locally, so no local installer was built. The Windows CI
+  installer was downloaded, checksum-verified, and launched twice with `/S`
+  and Windows elevation. The UAC request did not complete on this managed
+  desktop, so both waiting shells were cancelled. Windows confirmed after each
+  attempt that no install directory or uninstall registry entry existed.
+  Install, launch, uninstall, and reinstall therefore remain unvalidated; the
+  successful CI job validates construction only.
 - Code signing did not occur. Windows may show an unknown-publisher warning.
 - A real authenticated Codex turn remains unavailable because the installed
   AppX Codex CLI returns `Access is denied`; deterministic hook installer and

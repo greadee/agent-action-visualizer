@@ -610,9 +610,9 @@
 - Status: complete
 - Files changed: Windows packaging script, NSIS file list, package-tool ignore rule, packaging regression test, and branch-aware CI/package triggers
 - Tests run: root and desktop module verification, complete tests and vet; packaging regression; packaging dry run; Wails Windows production build; dirty-tree validation build; clean-clone portable build; Authenticode/version/checksum inspection; tracked-content audit; `git diff --check`
-- Packaging result: the clean clone at `89b31736e450af73e46efcef4bc91659ffeb24ef` produced the desktop executable, `aav.exe`, `aav-codex-hook.exe`, `aav-wrapper.exe`, and `SHA256SUMS.txt`. Exact sizes and SHA-256 values are recorded in `docs/RELEASE_CHECKLIST.md`.
+- Packaging result: the clean clone at `89b31736e450af73e46efcef4bc91659ffeb24ef` produced the desktop executable, `aav.exe`, `aav-codex-hook.exe`, `aav-wrapper.exe`, and `SHA256SUMS.txt`. Windows package run `33031924687` built the same implementation head with the NSIS installer and passed. Both artifact sets' exact sizes and SHA-256 values are recorded in `docs/RELEASE_CHECKLIST.md`.
 - Implementation SHA: `89b31736e450af73e46efcef4bc91659ffeb24ef`
-- Known limitations: NSIS was absent locally, so the installer and install/launch/uninstall/reinstall lifecycle were unavailable. Code signing did not occur. A repeat direct launch of the exact packaging head was obstructed by an unrelated Windows Security prompt; the immediately preceding identical application code was directly exercised.
+- Known limitations: NSIS was absent locally. The CI installer was downloaded and checksum-verified, but two silent-install attempts could not complete interactive UAC elevation; no partial installation remained, and install/launch/uninstall/reinstall behavior is unvalidated. Code signing did not occur. A repeat direct launch of the exact packaging head was obstructed by an unrelated Windows Security prompt; the immediately preceding identical application code was directly exercised.
 - Next slice: P11-S4 - Release / record
 
 ## P11-S4 - Release / record
@@ -623,7 +623,7 @@
 - Action: Document, audit, and synchronize
 - Status: complete
 - Files changed: release checklist, installation, packaging, user guide, README, known limitations, and this implementation log
-- Tests run: documentation Prettier check; tracked generated-output, database, secret, dependency, source-snapshot, and machine-path audits; `git diff --check`; remote CI/package workflow verification
+- Tests run: documentation Prettier check; tracked generated-output, database, secret, dependency, source-snapshot, and machine-path audits; `git diff --check`; remote CI run `33032461609` and package run `33032461590` verification; implementation-head package run `33031924687` artifact download, checksum, Authenticode, and installer-elevation inspection
 - Artifact result: portable release names, byte sizes, SHA-256 checksums, signing status, host/tool versions, exact validation commands, observed results, unavailable gates, and residual risks are recorded in `docs/RELEASE_CHECKLIST.md`.
 - Implementation SHAs: `a86e70aebdc17efa2d587551c2e54c3dea717cdc`, `09667f4e31e82c2e224424d5c29eeb1cc7ebbbd1`, `6c297dc8e0e9b0f31e8f88c77e586b5b636930f6`, and `89b31736e450af73e46efcef4bc91659ffeb24ef`; this record is committed separately
 - Known limitations: the installer lifecycle, code signing, a real authenticated Codex turn, and the exact-final repeat-launch condition remain explicitly unresolved. Agent Action Sync remains deliberately deferred.

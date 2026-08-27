@@ -7,9 +7,10 @@ This file records the Windows initial-release boundary as of August 26, 2026.
 - Windows production and portable packaging are validated locally from a clean
   clone. The final byte-for-byte package repeat-launch limitation is recorded in
   the [release checklist](RELEASE_CHECKLIST.md).
-- NSIS is not installed on the validation host. Installer construction is a
-  Windows CI gate, but install, launch, uninstall, and reinstall were not
-  directly exercised locally.
+- NSIS is not installed on the validation host. The Windows CI installer built
+  successfully and its downloaded checksums passed, but two silent-install
+  attempts could not complete the managed desktop's interactive UAC elevation.
+  Install, launch, uninstall, and reinstall remain unvalidated.
 - Release artifacts are unsigned, so Windows may display an unknown-publisher
   warning. macOS artifacts are also not notarized.
 - Linux and macOS packaging are validated in CI only, not on this host.
