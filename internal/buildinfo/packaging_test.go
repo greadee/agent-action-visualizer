@@ -75,4 +75,29 @@ func TestWindowsPackageIncludesStandaloneSetupTools(t *testing.T) {
 			t.Fatalf("NSIS installer does not include %s", companion)
 		}
 	}
+
+	for _, fragment := range []string{
+		"!define REQUEST_EXECUTION_LEVEL \"user\"",
+		"InstallDir \"$LOCALAPPDATA\\Programs\\${INFO_COMPANYNAME}\\${INFO_PRODUCTNAME}\"",
+		"InstallDirRegKey HKCU \"${UNINST_KEY}\" \"InstallLocation\"",
+		"WriteRegStr HKCU \"${UNINST_KEY}\" \"InstallLocation\" \"$INSTDIR\"",
+		"DeleteRegKey HKCU \"${UNINST_KEY}\"",
+	} {
+		if !strings.Contains(string(installerScript), fragment) {
+			t.Fatalf("NSIS installer is missing per-user configuration %q", fragment)
+		}
+	}
+	if strings.Contains(string(installerScript), "RMDir /r \"$AppData\\${PRODUCT_EXECUTABLE}\"") {
+		t.Fatal("NSIS uninstall must preserve local application data")
+	}
+
+	lifecycleScript, err := os.ReadFile(filepath.Join(root, "scripts", "test-windows-installer.ps1"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, action := range []string{"action=install", "action=launch", "action=uninstall", "installer_lifecycle=passed"} {
+		if !strings.Contains(string(lifecycleScript), action) {
+			t.Fatalf("installer lifecycle script is missing %q", action)
+		}
+	}
 }
