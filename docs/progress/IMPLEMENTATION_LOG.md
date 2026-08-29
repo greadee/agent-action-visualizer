@@ -629,3 +629,32 @@
 - Known limitations: the installer lifecycle, code signing, a real authenticated Codex turn, and the exact-final repeat-launch condition remain explicitly unresolved. Agent Action Sync remains deliberately deferred.
 - Phase summary: the Windows release now starts without developer tooling, selects and remembers a repository through native UI, explains first-run and disconnected next actions, ships discoverable Codex/generic setup tools, preserves deterministic local-only failure-open behavior, and restores correctly aligned optional activity geometry. All available validation passed; each unavailable gate and remaining risk is recorded.
 - Next slice: none; await release-owner direction after remote verification
+
+## P12-S1 - Windows installer / validate
+
+- Phase: 12
+- Slice: P12-S1
+- Feature: Non-elevated per-user NSIS installation and repeatable lifecycle validation
+- Action: Fix, package, and validate
+- Status: complete
+- Files changed: per-user NSIS execution level, LocalAppData install path, HKCU uninstall metadata, stable installed executable name, local-data-preserving uninstall behavior, reusable PowerShell lifecycle gate, Windows package workflow gate, and packaging contract tests
+- Tests run: root and desktop module verification, complete Go tests and vet with repository-local caches; PowerShell parser validation; packaging dry run and focused packaging contract test; frontend Prettier, ESLint, TypeScript, 20-file/64-test Vitest suite, and Vite production build; Wails 2.12.0 Windows production build; `git diff --check`; CI run `33274950901`; package run `33274950955`
+- Installer lifecycle: Windows CI and the downloaded CI artifact each completed install, launch, uninstall, reinstall, second launch, and final uninstall. Both cycles verified program files, three companion tools, shortcuts, HKCU registration, running application behavior, and cleanup. Local journal and WebView data remained preserved.
+- Artifact result: `agent-action-visualizer-v0.1.0-windows-amd64-installer.exe` (16,382,630 bytes), SHA-256 `93d27667950127a81a8b83930c7838101696a303726a9b3ad2c1768b9692e852`; complete artifact hashes are recorded in `docs/RELEASE_CHECKLIST.md`
+- Implementation SHAs: `12f6e8a010e5862c18cb97245e50014a9e2527e2` and `d03c9c34b1dd99ba342a6fe8dd5c201104e7ea43`
+- Known limitations: NSIS compilation remains CI-only because NSIS is not installed locally. Executables are unsigned and can trigger Windows reputation warnings. Session data preservation means users must remove local data separately when they explicitly want a full data purge.
+- Phase summary: the initial Windows installer is now usable by a standard local account without UAC, installs the complete standalone tool set, launches successfully, uninstalls cleanly, reinstalls successfully, and preserves local-only session data by design.
+- Next slice: P12-S2 - Release / record
+
+## P12-S2 - Installer release / record
+
+- Phase: 12
+- Slice: P12-S2
+- Feature: Installer setup and validation documentation
+- Action: Document and synchronize
+- Status: complete
+- Files changed: installation guide, packaging guide, known limitations, release checklist, and implementation log
+- Tests run: documentation Prettier check, tracked-content audit, `git diff --check`, and final branch-head CI/package verification
+- Implementation SHAs: `12f6e8a010e5862c18cb97245e50014a9e2527e2` and `d03c9c34b1dd99ba342a6fe8dd5c201104e7ea43`; this record is committed separately
+- Known limitations: code signing remains an external release-operator step; NSIS compilation remains CI-only on this host; Agent Action Sync remains deliberately deferred
+- Next slice: none; await release-owner direction

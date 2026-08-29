@@ -21,9 +21,16 @@ deterministic local graph even when no collector is connected.
 The current executables are unsigned, so Windows may show an unknown-publisher
 warning. Compare the release files with `SHA256SUMS.txt` before continuing.
 
-If an NSIS installer is supplied, it installs the same desktop executable and
-three adjacent setup tools. Installer lifecycle validation remains a release
-operator gate; see the [release checklist](RELEASE_CHECKLIST.md).
+The NSIS installer installs the same desktop executable and three adjacent setup
+tools for the current user under
+`%LocalAppData%\Programs\greadee\Agent Action Visualizer`. It does not
+request administrator elevation. It creates current-user Start menu and desktop
+shortcuts and registers the uninstaller in Windows **Installed apps**.
+
+Uninstall removes the application files, shortcuts, and registration while
+preserving the separate local session journal and preferences for recovery or
+reinstallation. See the [release checklist](RELEASE_CHECKLIST.md) for the
+validated install, launch, uninstall, and reinstall lifecycle.
 
 ## Toolchain
 
@@ -197,7 +204,9 @@ npm run build
 ## Verified platform boundary
 
 - Windows desktop development and portable packaging are validated locally.
-- NSIS installer construction and lifecycle testing were unavailable locally.
+- The per-user NSIS installer is built in Windows CI and its downloaded artifact
+  passed install, launch, uninstall, reinstall, and final-cleanup validation on
+  this host.
 - Release executables are unsigned.
 - Linux and macOS packaging are validated in CI, not on this host.
 - The AppX-installed Codex CLI on this Windows host still returns

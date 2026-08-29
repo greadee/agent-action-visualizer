@@ -175,3 +175,53 @@ choice inside the real dialog was not automated.
   validation.
 - Agent Action Sync remains deliberately deferred. No model calls or
   model-visible visualization reporting were added.
+
+## Per-user installer follow-up
+
+The August 29, 2026 P12-S1 follow-up resolved the Phase 11 installer lifecycle
+limitation. Implementation commits `12f6e8a010e5862c18cb97245e50014a9e2527e2`
+and `d03c9c34b1dd99ba342a6fe8dd5c201104e7ea43` changed NSIS from an
+administrator-scoped Program Files install to a current-user install under
+`%LocalAppData%\Programs\greadee\Agent Action Visualizer`.
+
+The installer now:
+
+- avoids UAC and writes uninstall metadata under HKCU;
+- installs `agent-action-visualizer.exe`, `aav.exe`,
+  `aav-codex-hook.exe`, and `aav-wrapper.exe`;
+- creates current-user Start menu and desktop shortcuts;
+- removes program files, shortcuts, and registration on uninstall; and
+- preserves the separate local journal and WebView preferences.
+
+CI run
+[`33274950901`](https://github.com/greadee/agent-action-visualizer/actions/runs/33274950901)
+and package run
+[`33274950955`](https://github.com/greadee/agent-action-visualizer/actions/runs/33274950955)
+both passed at `d03c9c34`. The Windows job compiled NSIS 3.12 and reported:
+
+```text
+cycle=1 action=install
+cycle=1 action=launch
+cycle=1 action=uninstall
+cycle=2 action=install
+cycle=2 action=launch
+cycle=2 action=uninstall
+installer_lifecycle=passed
+```
+
+The exact downloaded Windows artifact then passed the same two cycles directly
+on the validation host. Final checks confirmed no install directory, uninstall
+registration, shortcut, or application process remained, while the local
+journal and WebView data remained present.
+
+| Artifact                                                     |      Bytes | SHA-256                                                            |
+| ------------------------------------------------------------ | ---------: | ------------------------------------------------------------------ |
+| `agent-action-visualizer-v0.1.0-windows-amd64.exe`           | 16,845,312 | `e1ff4dc800548621a510995e8a842b318f132f7ec8aa8b01fe8abf776147b369` |
+| `agent-action-visualizer-v0.1.0-windows-amd64-installer.exe` | 16,382,630 | `93d27667950127a81a8b83930c7838101696a303726a9b3ad2c1768b9692e852` |
+| `aav.exe`                                                    |  4,583,936 | `0ae6b6c650ef7c7da42d122dcad576fe685b4bd9387e2c39e95eaf20a3625cb7` |
+| `aav-codex-hook.exe`                                         |  4,150,272 | `ea10b6007f64d731253474838ec35e9610473514a2d00a476b9bd86cce6f15eb` |
+| `aav-wrapper.exe`                                            |  5,137,920 | `c3c0cd7c346b2469ed6d80309acdd9eb72da57d04efb1f88c0d119ce28ea8ed5` |
+| `SHA256SUMS.txt`                                             |        486 | `0643e4a61217ca2af0c1c140a157dd5779fb71070ad3d7a0f250d4dde38999b2` |
+
+The manifest matched all five executable hashes. All executables remain
+deliberately unsigned.
