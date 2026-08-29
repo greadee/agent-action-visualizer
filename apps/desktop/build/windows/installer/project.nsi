@@ -35,6 +35,7 @@ Unicode true
 # The initial Windows release is intentionally scoped to one local user.
 # Avoid elevation and keep registration, shortcuts, and files in that profile.
 !define REQUEST_EXECUTION_LEVEL "user"
+!define PRODUCT_EXECUTABLE "agent-action-visualizer.exe"
 !include "wails_tools.nsh"
 
 # The version information for this two must consist of 4 parts

@@ -78,6 +78,7 @@ func TestWindowsPackageIncludesStandaloneSetupTools(t *testing.T) {
 
 	for _, fragment := range []string{
 		"!define REQUEST_EXECUTION_LEVEL \"user\"",
+		"!define PRODUCT_EXECUTABLE \"agent-action-visualizer.exe\"",
 		"InstallDir \"$LOCALAPPDATA\\Programs\\${INFO_COMPANYNAME}\\${INFO_PRODUCTNAME}\"",
 		"InstallDirRegKey HKCU \"${UNINST_KEY}\" \"InstallLocation\"",
 		"WriteRegStr HKCU \"${UNINST_KEY}\" \"InstallLocation\" \"$INSTDIR\"",
