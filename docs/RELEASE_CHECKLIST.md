@@ -160,14 +160,12 @@ choice inside the real dialog was not automated.
 - The portable release set was built and the preceding identical application
   code was directly exercised without developer tooling. The exact-final repeat
   limitation is recorded above.
-- NSIS was unavailable locally, so no local installer was built. The Windows CI
-  installer was downloaded, checksum-verified, and launched twice with `/S`
-  and Windows elevation. The UAC request did not complete on this managed
-  desktop, so both waiting shells were cancelled. Windows confirmed after each
-  attempt that no install directory or uninstall registry entry existed.
-  Install, launch, uninstall, and reinstall therefore remain unvalidated; the
-  successful CI job validates construction only.
-- Code signing did not occur. Windows may show an unknown-publisher warning.
+- NSIS remains unavailable locally, so installer compilation is a Windows CI
+  responsibility. The final per-user installer passed two complete
+  install/launch/uninstall cycles in CI and again after download on this Windows
+  host. The exact lifecycle evidence is recorded in the follow-up below.
+- Code signing has not been implemented. Windows may display an
+  unknown-publisher or application-reputation warning.
 - A real authenticated Codex turn remains unavailable because the installed
   AppX Codex CLI returns `Access is denied`; deterministic hook installer and
   failure-open contracts pass their local fixtures.
@@ -223,5 +221,6 @@ journal and WebView data remained present.
 | `aav-wrapper.exe`                                            |  5,137,920 | `c3c0cd7c346b2469ed6d80309acdd9eb72da57d04efb1f88c0d119ce28ea8ed5` |
 | `SHA256SUMS.txt`                                             |        486 | `0643e4a61217ca2af0c1c140a157dd5779fb71070ad3d7a0f250d4dde38999b2` |
 
-The manifest matched all five executable hashes. All executables remain
-deliberately unsigned.
+The manifest matched all five executable hashes. Code signing has not been
+implemented, so all executables remain unsigned and Windows may display
+unknown-publisher or application-reputation warnings.

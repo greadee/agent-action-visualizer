@@ -1,6 +1,6 @@
 # Known limitations
 
-This file records the Windows initial-release boundary as of August 26, 2026.
+This file records the Windows initial-release boundary as of August 30, 2026.
 
 ## Platform and packaging
 
@@ -11,8 +11,8 @@ This file records the Windows initial-release boundary as of August 26, 2026.
   a Windows CI responsibility. The current per-user installer avoids UAC and its
   downloaded CI artifact passed two complete install/launch/uninstall cycles
   locally as well as in CI.
-- Release artifacts are unsigned, so Windows may display an unknown-publisher
-  warning. macOS artifacts are also not notarized.
+- Code signing has not been implemented. Windows may display unknown-publisher
+  or application-reputation warnings. macOS artifacts are also not notarized.
 - Linux and macOS packaging are validated in CI only, not on this host.
 - Desktop automation opened the native folder picker but could not address its
   owned Explorer controls. Picker result handling is covered by Wails binding

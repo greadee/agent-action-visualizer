@@ -18,8 +18,9 @@ npm, Wails, terminal, or source checkout is required. On first run, select
 **Choose folder...** and choose a local Git repository. The app builds the
 deterministic local graph even when no collector is connected.
 
-The current executables are unsigned, so Windows may show an unknown-publisher
-warning. Compare the release files with `SHA256SUMS.txt` before continuing.
+Code signing has not been implemented. Windows may show an unknown-publisher or
+application-reputation warning when the portable executable or installer is
+opened. Compare the release files with `SHA256SUMS.txt` before continuing.
 
 The NSIS installer installs the same desktop executable and three adjacent setup
 tools for the current user under
@@ -207,7 +208,8 @@ npm run build
 - The per-user NSIS installer is built in Windows CI and its downloaded artifact
   passed install, launch, uninstall, reinstall, and final-cleanup validation on
   this host.
-- Release executables are unsigned.
+- Code signing has not been implemented; Windows may display publisher or
+  application-reputation warnings for release executables.
 - Linux and macOS packaging are validated in CI, not on this host.
 - The AppX-installed Codex CLI on this Windows host still returns
   `Access is denied` when invoked directly, so live authenticated Codex turns

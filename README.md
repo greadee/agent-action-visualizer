@@ -19,9 +19,12 @@ visualization state back into an agent context.
 ## Platform status
 
 - Windows desktop development and portable packaging are validated locally.
+- The per-user NSIS installer passed install, launch, uninstall, reinstall, and
+  final-cleanup validation in Windows CI and directly on the Windows validation
+  host.
 - Linux and macOS packaging are validated in CI only.
-- Release artifacts are currently unsigned. Local NSIS installer lifecycle
-  validation was unavailable, and macOS artifacts are not notarized.
+- Code signing has not been implemented. Windows may display unknown-publisher
+  or application-reputation warnings, and macOS artifacts are not notarized.
 
 See [known limitations](docs/KNOWN_LIMITATIONS.md) for the current release
 boundary.

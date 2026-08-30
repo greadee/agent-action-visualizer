@@ -658,3 +658,16 @@
 - Implementation SHAs: `12f6e8a010e5862c18cb97245e50014a9e2527e2` and `d03c9c34b1dd99ba342a6fe8dd5c201104e7ea43`; this record is committed separately
 - Known limitations: code signing remains an external release-operator step; NSIS compilation remains CI-only on this host; Agent Action Sync remains deliberately deferred
 - Next slice: none; await release-owner direction
+
+## P12-S3 - Windows release / finalize
+
+- Phase: 12
+- Slice: P12-S3
+- Feature: Final standalone Windows release handoff
+- Action: Reconcile, document, and merge
+- Status: complete
+- Files changed: README platform status, installation and packaging guidance, known limitations, release checklist, and this implementation log
+- Tests run: documentation formatting, tracked-content audit, `git diff --check`, branch push, and final `main` synchronization
+- Release result: the portable application and per-user NSIS installer are validated for the recorded Windows boundary; the installer completed install, launch, uninstall, reinstall, second launch, and final cleanup both in CI and directly on the validation host
+- Known limitations: code signing has not been implemented, so Windows may display unknown-publisher or application-reputation warnings; NSIS compilation remains CI-only on this host; Agent Action Sync remains deliberately deferred
+- Next slice: none; the standalone Windows initial-release branch is ready to merge to `main`

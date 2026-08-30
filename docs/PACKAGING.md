@@ -64,7 +64,8 @@ installer with a controlled certificate, verify signatures and timestamps,
 regenerate the final checksum manifest, and directly exercise install, launch,
 uninstall, and reinstall. The August 29, 2026 per-user installer passed that
 lifecycle in Windows CI and from the downloaded CI artifact on the validation
-host. Artifacts remain unsigned.
+host. Code signing has not been implemented, so Windows may display
+unknown-publisher or application-reputation warnings for these artifacts.
 
 ## Linux and macOS
 
