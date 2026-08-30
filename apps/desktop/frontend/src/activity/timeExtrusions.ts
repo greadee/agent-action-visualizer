@@ -1,4 +1,8 @@
-import { accessAnchor } from './accessPoints'
+import {
+  accessAnchor,
+  accessAnchorOrdinal,
+  accessAnchorOrdinals,
+} from './accessPoints'
 import type { GraphNode, TrailAccess, Vec3 } from '../graph/types'
 import { addScaled, normalize, subtract } from '../rendering/vectorMath'
 
@@ -79,6 +83,7 @@ export function buildTimeExtrusions(
     ? Math.max(1, visualCapMs)
     : MAX_DURATION_SCALE_MS
   const nodesByID = new Map(nodes.map((node) => [node.id, node]))
+  const ordinals = accessAnchorOrdinals(trail)
   const candidates = [...trail]
     .sort((left, right) => left.sequence - right.sequence)
     .flatMap((access) => {
@@ -94,7 +99,10 @@ export function buildTimeExtrusions(
   )
 
   return candidates.map(({ access, node, durationMs }) => {
-    const start = accessAnchor(node.position, Math.max(0, access.sequence - 1))
+    const start = accessAnchor(
+      node.position,
+      accessAnchorOrdinal(ordinals, access),
+    )
     const outward = outwardFromAnchor(start, node)
     const unclampedLength = durationExtrusionLength(
       durationMs,

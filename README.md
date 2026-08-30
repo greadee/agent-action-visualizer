@@ -18,13 +18,23 @@ visualization state back into an agent context.
 
 ## Platform status
 
-- Windows desktop development and packaging are validated locally.
+- Windows desktop development and portable packaging are validated locally.
+- The per-user NSIS installer passed install, launch, uninstall, reinstall, and
+  final-cleanup validation in Windows CI and directly on the Windows validation
+  host.
 - Linux and macOS packaging are validated in CI only.
-- Release artifacts are currently unsigned, and macOS artifacts are not
-  notarized.
+- Code signing has not been implemented. Windows may display unknown-publisher
+  or application-reputation warnings, and macOS artifacts are not notarized.
 
 See [known limitations](docs/KNOWN_LIMITATIONS.md) for the current release
 boundary.
+
+## Standalone Windows quickstart
+
+Keep the desktop executable, `aav.exe`, `aav-codex-hook.exe`,
+`aav-wrapper.exe`, and `SHA256SUMS.txt` together. Verify the checksums,
+double-click the desktop executable, and select **Choose folder...**. The
+portable app requires no developer tooling.
 
 ## Quickstart from source
 
@@ -86,6 +96,9 @@ Load that path in the desktop app to inspect stable shells, access points,
 Time/Work geometry, filtering, analytics, and replay behavior.
 
 ## Codex and generic wrapper setup
+
+Standalone packages already contain the three tools below. The following build
+commands are only for source checkouts.
 
 Build the CLI utilities:
 

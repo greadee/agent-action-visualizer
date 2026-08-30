@@ -17,6 +17,33 @@ export interface AccessPoint {
   latest: TrailAccess
 }
 
+function accessAnchorKey(
+  access: Pick<TrailAccess, 'node_id' | 'sequence'>,
+): string {
+  return `${access.node_id ?? ''}\u0000${access.sequence}`
+}
+
+export function accessAnchorOrdinals(
+  trail: readonly TrailAccess[],
+): ReadonlyMap<string, number> {
+  const nextOrdinalByNode = new Map<string, number>()
+  const ordinals = new Map<string, number>()
+  for (const access of [...trail].sort((a, b) => a.sequence - b.sequence)) {
+    if (!access.node_id) continue
+    const ordinal = nextOrdinalByNode.get(access.node_id) ?? 0
+    ordinals.set(accessAnchorKey(access), ordinal)
+    nextOrdinalByNode.set(access.node_id, ordinal + 1)
+  }
+  return ordinals
+}
+
+export function accessAnchorOrdinal(
+  ordinals: ReadonlyMap<string, number>,
+  access: Pick<TrailAccess, 'node_id' | 'sequence'>,
+): number {
+  return ordinals.get(accessAnchorKey(access)) ?? 0
+}
+
 function dot(a: Vec3, b: Vec3): number {
   return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
 }
@@ -90,6 +117,7 @@ export function buildAccessPoints(
   nodes: readonly GraphNode[],
 ): AccessPoint[] {
   const nodeByID = new Map(nodes.map((node) => [node.id, node]))
+  const ordinals = accessAnchorOrdinals(trail)
   const accessesByNode = new Map<string, TrailAccess[]>()
   for (const access of [...trail].sort((a, b) => a.sequence - b.sequence)) {
     if (!access.node_id || !nodeByID.has(access.node_id)) continue
@@ -102,8 +130,15 @@ export function buildAccessPoints(
   for (const [nodeID, accesses] of accessesByNode) {
     const node = nodeByID.get(nodeID)!
     if (accesses.length <= MAX_INDIVIDUAL_ACCESS_POINTS) {
-      accesses.forEach((access, ordinal) =>
-        points.push(pointFromAccesses(node, [access], ordinal, false)),
+      accesses.forEach((access) =>
+        points.push(
+          pointFromAccesses(
+            node,
+            [access],
+            accessAnchorOrdinal(ordinals, access),
+            false,
+          ),
+        ),
       )
       continue
     }
@@ -121,9 +156,14 @@ export function buildAccessPoints(
         ),
       )
     }
-    recent.forEach((access, index) =>
+    recent.forEach((access) =>
       points.push(
-        pointFromAccesses(node, [access], older.length + index, false),
+        pointFromAccesses(
+          node,
+          [access],
+          accessAnchorOrdinal(ordinals, access),
+          false,
+        ),
       ),
     )
   }

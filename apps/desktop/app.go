@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 
@@ -243,6 +244,11 @@ type graphPatchDTO struct {
 	Edges    []graphEdgeDTO `json:"edges"`
 }
 
+type openProjectDTO struct {
+	Graph graphSnapshotDTO `json:"graph"`
+	Root  string           `json:"root"`
+}
+
 type liveFocusDTO struct {
 	SessionID        string              `json:"session_id"`
 	ActiveNodeID     string              `json:"active_node_id,omitempty"`
@@ -328,6 +334,64 @@ func (a *App) LoadProject(root string) (graphSnapshotDTO, error) {
 		wailsruntime.EventsEmit(a.ctx, "aav:graph:snapshot", result)
 	}
 	return result, nil
+}
+
+// PickProjectDirectory opens the native folder picker without reading project contents.
+func (a *App) PickProjectDirectory() (string, error) {
+	a.mu.Lock()
+	ctx := a.ctx
+	a.mu.Unlock()
+	if ctx == nil {
+		return "", errors.New("the native folder picker is unavailable; enter the repository path instead")
+	}
+	options := wailsruntime.OpenDialogOptions{Title: "Choose a local Git repository"}
+	if home, err := os.UserHomeDir(); err == nil {
+		options.DefaultDirectory = home
+	}
+	return wailsruntime.OpenDirectoryDialog(ctx, options)
+}
+
+// OpenProject validates the user-selected repository before loading its metadata-only graph.
+func (a *App) OpenProject(root string) (openProjectDTO, error) {
+	validated, err := validateProjectRoot(root)
+	if err != nil {
+		return openProjectDTO{}, err
+	}
+	snapshot, err := a.LoadProject(validated)
+	if err != nil {
+		return openProjectDTO{}, errors.New("the repository could not be scanned; check access and try again")
+	}
+	return openProjectDTO{Graph: snapshot, Root: validated}, nil
+}
+
+func validateProjectRoot(root string) (string, error) {
+	root = strings.TrimSpace(root)
+	if root == "" {
+		return "", errors.New("choose a local Git repository folder to continue")
+	}
+	absolute, err := filepath.Abs(root)
+	if err != nil {
+		return "", errors.New("the project path is invalid; choose a repository folder")
+	}
+	info, err := os.Stat(absolute)
+	if errors.Is(err, os.ErrNotExist) {
+		return "", errors.New("the project folder was not found; choose an existing repository")
+	}
+	if err != nil {
+		return "", errors.New("the project folder is not accessible; check its permissions")
+	}
+	if !info.IsDir() {
+		return "", errors.New("the selected path is not a folder; choose a Git repository folder")
+	}
+	if _, err := os.ReadDir(absolute); err != nil {
+		return "", errors.New("the project folder is not readable; check its permissions")
+	}
+	if _, err := os.Stat(filepath.Join(absolute, ".git")); errors.Is(err, os.ErrNotExist) {
+		return "", errors.New("the selected folder is not a Git repository; choose a folder containing .git")
+	} else if err != nil {
+		return "", errors.New("the repository metadata is not accessible; check its permissions")
+	}
+	return filepath.Clean(absolute), nil
 }
 
 // PublishActivityEvent accepts a normalized protocol event, updates session

@@ -572,3 +572,102 @@
 - Known limitations: Linux and macOS packages remain native CI-only and unexecuted on this Windows host; artifacts remain unsigned and macOS is not notarized; NSIS installer generation remains CI-only because NSIS is absent locally; the installed AppX Codex CLI still cannot run an authenticated live session on this host; same-user IPC trust, redaction heuristics, and the upstream React Three Fiber `THREE.Clock` warning remain documented residual boundaries
 - Phase summary: Phases 0 through 10 now deliver a deterministic, local-only agent-action visualizer with versioned bounded ingestion, SQLite sessions, stable graph and activity geometry, Time/Work modes, Codex and generic failure-open adapters, replay, filters, analytics, performance scaling, security/recovery hardening, packaging, and release documentation. The MVP is complete. It is production-ready for the validated Windows boundary once the final remote CI gates pass; unverified platforms and signing/notarization limitations remain explicitly documented
 - Next slice: none; await release-owner direction after remote verification
+
+## P11-S1 - Windows / onboard
+
+- Phase: 11
+- Slice: P11-S1
+- Feature: Standalone Windows first run, native repository selection, setup guidance, and persisted preferences
+- Action: Implement and validate
+- Status: complete
+- Files changed: Wails native folder binding; first-run, recent-project, path-validation, disconnected-collector, Codex, generic-wrapper, help, and troubleshooting UI; accessible status and dialog behavior; embedded Windows version metadata; integration and frontend tests
+- Tests run: focused and complete frontend suites; Prettier, ESLint, TypeScript, Vite; root and desktop Go tests/vet; Wails Windows production build; `git diff --check`
+- Visual or E2E validation: directly launched the packaged desktop executable through Windows without a developer tool in the launch path; inspected first run, native picker, populated and invalid projects, empty history, disconnected collection, setup/help flows, keyboard-accessible controls, and close/reopen Time/Work persistence
+- Implementation SHAs: `a86e70aebdc17efa2d587551c2e54c3dea717cdc` and `09667f4e31e82c2e224424d5c29eeb1cc7ebbbd1`
+- Known limitations: desktop automation opened the native Explorer picker but could not address its owned child controls; result handling is covered by Wails binding integration tests. The release remains unsigned.
+- Next slice: P11-S2 - Rendering / align
+
+## P11-S2 - Rendering / align
+
+- Phase: 11
+- Slice: P11-S2
+- Feature: Stable per-file edit anchors, Time/Work extrusion alignment, and performance toggles
+- Action: Fix and validate
+- Status: complete
+- Files changed: shared deterministic per-node activity-anchor ordinal helpers; Time and Work geometry; interleaved-file regression coverage; accessible activity-geometry controls and status copy; help text
+- Tests run: focused 5-file/27-test frontend suite; complete 20-file/64-test suite; Prettier, ESLint, TypeScript, Vite production build; Wails Windows production build; `git diff --check`
+- Visual or E2E validation: a 100-node/40-access fixture showed Time duration outward, Work additions outward and deletions inward from matching stable per-file points, and independent access-point/extrusion toggles. Replay, filters, analytics, Time, and Work fixtures stayed green.
+- Implementation SHA: `6c297dc8e0e9b0f31e8f88c77e586b5b636930f6`
+- Known limitations: empty history deliberately has no access geometry; exact values remain in data/tooltips even when geometry is visually clamped. The upstream React Three Fiber `THREE.Clock` warning remains.
+- Next slice: P11-S3 - Windows / package
+
+## P11-S3 - Windows / package
+
+- Phase: 11
+- Slice: P11-S3
+- Feature: Self-contained portable and installer setup tools
+- Action: Package and validate
+- Status: complete
+- Files changed: Windows packaging script, NSIS file list, package-tool ignore rule, packaging regression test, and branch-aware CI/package triggers
+- Tests run: root and desktop module verification, complete tests and vet; packaging regression; packaging dry run; Wails Windows production build; dirty-tree validation build; clean-clone portable build; Authenticode/version/checksum inspection; tracked-content audit; `git diff --check`
+- Packaging result: the clean clone at `89b31736e450af73e46efcef4bc91659ffeb24ef` produced the desktop executable, `aav.exe`, `aav-codex-hook.exe`, `aav-wrapper.exe`, and `SHA256SUMS.txt`. Windows package run `33031924687` built the same implementation head with the NSIS installer and passed. Both artifact sets' exact sizes and SHA-256 values are recorded in `docs/RELEASE_CHECKLIST.md`.
+- Implementation SHA: `89b31736e450af73e46efcef4bc91659ffeb24ef`
+- Known limitations: NSIS was absent locally. The CI installer was downloaded and checksum-verified, but two silent-install attempts could not complete interactive UAC elevation; no partial installation remained, and install/launch/uninstall/reinstall behavior is unvalidated. Code signing did not occur. A repeat direct launch of the exact packaging head was obstructed by an unrelated Windows Security prompt; the immediately preceding identical application code was directly exercised.
+- Next slice: P11-S4 - Release / record
+
+## P11-S4 - Release / record
+
+- Phase: 11
+- Slice: P11-S4
+- Feature: Windows initial-release evidence and user-facing setup documentation
+- Action: Document, audit, and synchronize
+- Status: complete
+- Files changed: release checklist, installation, packaging, user guide, README, known limitations, and this implementation log
+- Tests run: documentation Prettier check; tracked generated-output, database, secret, dependency, source-snapshot, and machine-path audits; `git diff --check`; remote CI run `33032461609` and package run `33032461590` verification; implementation-head package run `33031924687` artifact download, checksum, Authenticode, and installer-elevation inspection
+- Artifact result: portable release names, byte sizes, SHA-256 checksums, signing status, host/tool versions, exact validation commands, observed results, unavailable gates, and residual risks are recorded in `docs/RELEASE_CHECKLIST.md`.
+- Implementation SHAs: `a86e70aebdc17efa2d587551c2e54c3dea717cdc`, `09667f4e31e82c2e224424d5c29eeb1cc7ebbbd1`, `6c297dc8e0e9b0f31e8f88c77e586b5b636930f6`, and `89b31736e450af73e46efcef4bc91659ffeb24ef`; this record is committed separately
+- Known limitations: the installer lifecycle, code signing, a real authenticated Codex turn, and the exact-final repeat-launch condition remain explicitly unresolved. Agent Action Sync remains deliberately deferred.
+- Phase summary: the Windows release now starts without developer tooling, selects and remembers a repository through native UI, explains first-run and disconnected next actions, ships discoverable Codex/generic setup tools, preserves deterministic local-only failure-open behavior, and restores correctly aligned optional activity geometry. All available validation passed; each unavailable gate and remaining risk is recorded.
+- Next slice: none; await release-owner direction after remote verification
+
+## P12-S1 - Windows installer / validate
+
+- Phase: 12
+- Slice: P12-S1
+- Feature: Non-elevated per-user NSIS installation and repeatable lifecycle validation
+- Action: Fix, package, and validate
+- Status: complete
+- Files changed: per-user NSIS execution level, LocalAppData install path, HKCU uninstall metadata, stable installed executable name, local-data-preserving uninstall behavior, reusable PowerShell lifecycle gate, Windows package workflow gate, and packaging contract tests
+- Tests run: root and desktop module verification, complete Go tests and vet with repository-local caches; PowerShell parser validation; packaging dry run and focused packaging contract test; frontend Prettier, ESLint, TypeScript, 20-file/64-test Vitest suite, and Vite production build; Wails 2.12.0 Windows production build; `git diff --check`; CI run `33274950901`; package run `33274950955`
+- Installer lifecycle: Windows CI and the downloaded CI artifact each completed install, launch, uninstall, reinstall, second launch, and final uninstall. Both cycles verified program files, three companion tools, shortcuts, HKCU registration, running application behavior, and cleanup. Local journal and WebView data remained preserved.
+- Artifact result: `agent-action-visualizer-v0.1.0-windows-amd64-installer.exe` (16,382,630 bytes), SHA-256 `93d27667950127a81a8b83930c7838101696a303726a9b3ad2c1768b9692e852`; complete artifact hashes are recorded in `docs/RELEASE_CHECKLIST.md`
+- Implementation SHAs: `12f6e8a010e5862c18cb97245e50014a9e2527e2` and `d03c9c34b1dd99ba342a6fe8dd5c201104e7ea43`
+- Known limitations: NSIS compilation remains CI-only because NSIS is not installed locally. Executables are unsigned and can trigger Windows reputation warnings. Session data preservation means users must remove local data separately when they explicitly want a full data purge.
+- Phase summary: the initial Windows installer is now usable by a standard local account without UAC, installs the complete standalone tool set, launches successfully, uninstalls cleanly, reinstalls successfully, and preserves local-only session data by design.
+- Next slice: P12-S2 - Release / record
+
+## P12-S2 - Installer release / record
+
+- Phase: 12
+- Slice: P12-S2
+- Feature: Installer setup and validation documentation
+- Action: Document and synchronize
+- Status: complete
+- Files changed: installation guide, packaging guide, known limitations, release checklist, and implementation log
+- Tests run: documentation Prettier check, tracked-content audit, `git diff --check`, and final branch-head CI/package verification
+- Implementation SHAs: `12f6e8a010e5862c18cb97245e50014a9e2527e2` and `d03c9c34b1dd99ba342a6fe8dd5c201104e7ea43`; this record is committed separately
+- Known limitations: code signing remains an external release-operator step; NSIS compilation remains CI-only on this host; Agent Action Sync remains deliberately deferred
+- Next slice: none; await release-owner direction
+
+## P12-S3 - Windows release / finalize
+
+- Phase: 12
+- Slice: P12-S3
+- Feature: Final standalone Windows release handoff
+- Action: Reconcile, document, and merge
+- Status: complete
+- Files changed: README platform status, installation and packaging guidance, known limitations, release checklist, and this implementation log
+- Tests run: documentation formatting, tracked-content audit, `git diff --check`, branch push, and final `main` synchronization
+- Release result: the portable application and per-user NSIS installer are validated for the recorded Windows boundary; the installer completed install, launch, uninstall, reinstall, second launch, and final cleanup both in CI and directly on the validation host
+- Known limitations: code signing has not been implemented, so Windows may display unknown-publisher or application-reputation warnings; NSIS compilation remains CI-only on this host; Agent Action Sync remains deliberately deferred
+- Next slice: none; the standalone Windows initial-release branch is ready to merge to `main`

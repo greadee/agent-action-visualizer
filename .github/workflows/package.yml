@@ -2,7 +2,7 @@ name: package
 
 on:
   push:
-    branches: [main, codex/initial-build]
+    branches: [main, "codex/**"]
   pull_request:
   workflow_dispatch:
 
@@ -40,6 +40,11 @@ jobs:
           "value=$value" >> $env:GITHUB_OUTPUT
       - shell: pwsh
         run: .\scripts\package.ps1 -Wails "$(go env GOPATH)\bin\wails.exe" -OutputDirectory "$env:RUNNER_TEMP\aav-package"
+      - shell: pwsh
+        run: |
+          $version = (Get-Content VERSION -Raw).Trim()
+          .\scripts\test-windows-installer.ps1 `
+            -Installer "$env:RUNNER_TEMP\aav-package\agent-action-visualizer-v$version-windows-amd64-installer.exe"
       - uses: actions/upload-artifact@v4
         with:
           name: agent-action-visualizer-v${{ steps.version.outputs.value }}-windows-amd64

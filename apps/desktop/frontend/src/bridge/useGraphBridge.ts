@@ -21,7 +21,12 @@ declare global {
     go?: {
       main?: {
         App?: {
+          Health?: () => Promise<Record<string, string>>
           LoadProject: (root: string) => Promise<GraphSnapshot>
+          OpenProject?: (
+            root: string,
+          ) => Promise<{ graph: GraphSnapshot; root: string }>
+          PickProjectDirectory?: () => Promise<string>
           PublishActivityEvent: (
             event: ActivityEvent,
           ) => Promise<LiveFocusState>
@@ -89,10 +94,40 @@ export function useGraphBridge(
   }, [])
 
   async function loadProject(root: string) {
-    const load = window.go?.main?.App?.LoadProject
+    const app = window.go?.main?.App
+    const open = app?.OpenProject
+    if (open) {
+      const result = await open(root)
+      setLiveFocus(undefined)
+      setGraph(result.graph)
+      return result.root
+    }
+    const load = app?.LoadProject
     if (!load)
       throw new Error('Desktop bridge is unavailable in browser preview')
+    setLiveFocus(undefined)
     setGraph(await load(root))
+    return root
+  }
+
+  async function pickProjectDirectory() {
+    const pick = window.go?.main?.App?.PickProjectDirectory
+    if (!pick)
+      throw new Error('Native folder selection is available in the desktop app')
+    return pick()
+  }
+
+  async function getHealth() {
+    const health = window.go?.main?.App?.Health
+    if (!health) {
+      return {
+        status: 'preview',
+        collector: 'preview',
+        persistence: 'preview',
+        recovery: 'none',
+      }
+    }
+    return health()
   }
 
   async function publishActivityEvent(event: ActivityEvent) {
@@ -251,7 +286,9 @@ export function useGraphBridge(
   return {
     graph,
     liveFocus,
+    getHealth,
     loadProject,
+    pickProjectDirectory,
     publishActivityEvent,
     listPersistedSessions,
     replayPersistedSession,

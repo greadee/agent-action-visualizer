@@ -44,6 +44,8 @@ import { adjacentAccessCursor, formatReplayTime } from './replay/timeline'
 
 const reviewEpoch = Date.parse('2026-07-21T18:00:00Z')
 const filterPreferenceKey = 'aav.visualizationFilters.v1'
+const recentProjectPreferenceKey = 'aav.recentProject.v1'
+const activityModePreferenceKey = 'aav.activityMode.v1'
 const SceneViewport = lazy(() => import('./scene/SceneViewport'))
 
 function App() {
@@ -66,12 +68,23 @@ function App() {
   const [recentTrailAccesses, setRecentTrailAccesses] = useState(12)
   const [completeTrail, setCompleteTrail] = useState(false)
   const [hideTrailRepeats, setHideTrailRepeats] = useState(true)
-  const [activityMode, setActivityMode] = useState<ActivityMode>('time')
+  const [activityMode, setActivityMode] = useState<ActivityMode>(() =>
+    loadActivityModePreference(),
+  )
   const [activitySettings, setActivitySettings] = useState(
     DEFAULT_ACTIVITY_DISPLAY_SETTINGS,
   )
   const [projectPath, setProjectPath] = useState('')
   const [projectError, setProjectError] = useState('')
+  const [loadedProjectPath, setLoadedProjectPath] = useState('')
+  const [projectBusy, setProjectBusy] = useState(false)
+  const [helpOpen, setHelpOpen] = useState(false)
+  const [health, setHealth] = useState<Record<string, string>>({
+    status: 'checking',
+    collector: 'checking',
+    persistence: 'checking',
+    recovery: 'none',
+  })
   const [displayedFocus, setDisplayedFocus] = useState<
     LiveFocusState | undefined
   >(scaleFixture?.focus)
@@ -93,10 +106,14 @@ function App() {
   const reviewStep = useRef(0)
   const reviewStarted = useRef(false)
   const latestFocus = useRef<LiveFocusState | undefined>(undefined)
+  const helpButton = useRef<HTMLButtonElement>(null)
+  const helpCloseButton = useRef<HTMLButtonElement>(null)
   const {
     graph,
     liveFocus,
+    getHealth,
     loadProject,
+    pickProjectDirectory,
     publishActivityEvent,
     listPersistedSessions,
     replayPersistedSession,
@@ -132,6 +149,7 @@ function App() {
         .slice(0, 5)
     : []
   const trailAccessCount = displayedFocus?.trail.length ?? 0
+  const visibleActivityCount = visibleFocus?.trail.length ?? 0
   const visibleTrailAccessCount = selectTrailAccesses(
     visibleFocus?.trail ?? [],
     {
@@ -144,6 +162,10 @@ function App() {
     () => buildSessionAnalytics(visibleGraph, visibleFocus),
     [visibleGraph, visibleFocus],
   )
+  const projectLoaded = Boolean(loadedProjectPath || scaleFixture)
+  const loadedProjectName = projectName(loadedProjectPath)
+  const collectorReady = health.collector === 'ready'
+  const collectorChecking = health.collector === 'checking'
 
   useEffect(() => {
     if (!selected && visibleGraph.nodes[0])
@@ -153,6 +175,41 @@ function App() {
   useEffect(() => {
     saveFilterPreferences(filters)
   }, [filters])
+
+  useEffect(() => {
+    saveLocalPreference(activityModePreferenceKey, activityMode)
+  }, [activityMode])
+
+  useEffect(() => {
+    let active = true
+    const refreshHealth = () => {
+      void getHealth()
+        .then((next) => {
+          if (active) setHealth(next)
+        })
+        .catch(() => {
+          if (active)
+            setHealth({
+              status: 'degraded',
+              collector: 'unavailable',
+              persistence: 'unknown',
+              recovery: 'unknown',
+            })
+        })
+    }
+    refreshHealth()
+    const timer = window.setInterval(refreshHealth, 3000)
+    return () => {
+      active = false
+      window.clearInterval(timer)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (scaleFixture) return
+    const recentProject = loadLocalPreference(recentProjectPreferenceKey)
+    if (recentProject) void openLocalProject(recentProject, true)
+  }, [])
 
   useEffect(() => {
     latestFocus.current = liveFocus
@@ -226,6 +283,48 @@ function App() {
     if (liveFocus?.active_node_id) {
       setSelectedId(liveFocus.active_node_id)
       setCameraFocusId(liveFocus.active_node_id)
+    }
+  }
+
+  function closeHelp() {
+    setHelpOpen(false)
+    window.setTimeout(() => helpButton.current?.focus(), 0)
+  }
+
+  useEffect(() => {
+    if (helpOpen) helpCloseButton.current?.focus()
+  }, [helpOpen])
+
+  async function openLocalProject(path: string, reopening = false) {
+    setProjectBusy(true)
+    setProjectError('')
+    try {
+      const resolved = await loadProject(path)
+      setProjectPath(resolved)
+      setLoadedProjectPath(resolved)
+      saveLocalPreference(recentProjectPreferenceKey, resolved)
+      setDisplayedFocus(undefined)
+      setReplaySession(undefined)
+      setPersistedSessions([])
+      await refreshPersistedSessions()
+    } catch (error) {
+      if (reopening) removeLocalPreference(recentProjectPreferenceKey)
+      const message = error instanceof Error ? error.message : String(error)
+      setProjectError(
+        reopening ? `Could not reopen the last project. ${message}` : message,
+      )
+    } finally {
+      setProjectBusy(false)
+    }
+  }
+
+  async function chooseLocalProject() {
+    setProjectError('')
+    try {
+      const selectedPath = await pickProjectDirectory()
+      if (selectedPath) await openLocalProject(selectedPath)
+    } catch (error) {
+      setProjectError(error instanceof Error ? error.message : String(error))
     }
   }
 
@@ -435,43 +534,197 @@ function App() {
           <span className="eyebrow">LOCAL OBSERVABILITY</span>
           <h1>Agent Action Visualizer</h1>
         </div>
-        <div className="topbar__status">
-          {scaleFixture && (
-            <span className="scale-profile" aria-label="Scale fixture">
-              SCALE {scaleFixture.nodeCount.toLocaleString()} NODES /{' '}
-              {scaleFixture.accessCount.toLocaleString()} ACCESSES
-            </span>
-          )}
-          <div className="connection" aria-label="Collector status">
-            <span className="connection__dot" /> Collector ready
+        <div className="topbar__actions">
+          <button
+            ref={helpButton}
+            className="help-button"
+            type="button"
+            onClick={() => setHelpOpen(true)}
+          >
+            Setup &amp; Help
+          </button>
+          <div className="topbar__status">
+            {scaleFixture && (
+              <span className="scale-profile" aria-label="Scale fixture">
+                SCALE {scaleFixture.nodeCount.toLocaleString()} NODES /{' '}
+                {scaleFixture.accessCount.toLocaleString()} ACCESSES
+              </span>
+            )}
+            <div
+              className={`connection ${collectorReady ? '' : 'connection--disconnected'}`}
+              aria-label="Collector status"
+              aria-live="polite"
+            >
+              <span className="connection__dot" />{' '}
+              {collectorChecking
+                ? 'Checking local collector'
+                : collectorReady
+                  ? 'Live collector available'
+                  : 'Collector disconnected · static graph available'}
+            </div>
           </div>
         </div>
       </header>
+      {helpOpen && (
+        <div
+          className="help-backdrop"
+          role="presentation"
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') closeHelp()
+            if (event.key === 'Tab') {
+              event.preventDefault()
+              helpCloseButton.current?.focus()
+            }
+          }}
+        >
+          <section
+            className="help-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="help-title"
+          >
+            <div className="help-dialog__header">
+              <div>
+                <span className="eyebrow">LOCAL SETUP</span>
+                <h2 id="help-title">Setup &amp; troubleshooting</h2>
+              </div>
+              <button
+                ref={helpCloseButton}
+                type="button"
+                aria-label="Close setup and help"
+                onClick={closeHelp}
+              >
+                Close
+              </button>
+            </div>
+            <div className="help-grid">
+              <article>
+                <h3>Open a project</h3>
+                <p>
+                  Choose a local Git repository. A deterministic static graph
+                  appears immediately; live activity is optional.
+                </p>
+              </article>
+              <article>
+                <h3>Time and Work</h3>
+                <p>
+                  Every recorded access or edit keeps a stable point on its file
+                  sphere. Time extends positive observed duration outward. Work
+                  extends additions outward and deletions inward from that same
+                  point. Turn Activity extrusions or Access points off to reduce
+                  render work. Exact values remain in the inspector even when
+                  geometry is capped.
+                </p>
+              </article>
+              <article>
+                <h3>Codex hook</h3>
+                <p>
+                  Keep <code>aav.exe</code> beside{' '}
+                  <code>aav-codex-hook.exe</code>, then run the project-scope
+                  install, status, and test commands. Uninstall removes only
+                  AAV-managed hook entries.
+                </p>
+                <code className="help-command">
+                  aav.exe codex install --scope project --project
+                  &quot;&lt;repository&gt;&quot;
+                </code>
+                <code className="help-command">
+                  aav.exe codex test --scope project --project
+                  &quot;&lt;repository&gt;&quot;
+                </code>
+                <code className="help-command">
+                  aav.exe codex uninstall --scope project --project
+                  &quot;&lt;repository&gt;&quot;
+                </code>
+              </article>
+              <article>
+                <h3>Generic wrapper</h3>
+                <p>
+                  Place <code>aav-wrapper.exe</code> before a local agent
+                  command. It preserves stdin, stdout, stderr, arguments, files,
+                  and exit behavior if collection fails.
+                </p>
+                <code className="help-command">
+                  aav-wrapper.exe --project-root &quot;&lt;repository&gt;&quot;
+                  -- your-agent.exe
+                </code>
+              </article>
+              <article>
+                <h3>Local data</h3>
+                <p>
+                  Session metadata stays in{' '}
+                  <code>%AppData%\agent-action-visualizer\sessions.db</code>.
+                  Source contents, prompts, command arguments, and output are
+                  not stored.
+                </p>
+              </article>
+              <article>
+                <h3>Common fixes</h3>
+                <p>
+                  Disconnected collector: keep using the static graph, then
+                  restart the app. No history: run a configured hook or wrapper.
+                  Invalid project: choose a readable folder containing{' '}
+                  <code>.git</code>.
+                </p>
+              </article>
+            </div>
+          </section>
+        </div>
+      )}
       <section className="workspace" aria-label="Project graph workspace">
         <aside className="panel">
-          <p className="panel__label">PROJECT</p>
+          {!projectLoaded && (
+            <div className="first-run" role="status">
+              <strong>Choose your first repository</strong>
+              <p>
+                Start with a private, local static graph. Add a Codex hook or
+                generic wrapper later for live activity.
+              </p>
+            </div>
+          )}
+          <label className="panel__label" htmlFor="project-path">
+            PROJECT
+          </label>
           <input
-            aria-label="Project path"
+            id="project-path"
             placeholder="Absolute project path"
             value={projectPath}
+            aria-invalid={Boolean(projectError)}
+            aria-describedby={projectError ? 'project-error' : undefined}
             onChange={(event) => setProjectPath(event.target.value)}
           />
-          <button
-            type="button"
-            onClick={() => {
-              setProjectError('')
-              void loadProject(projectPath)
-                .then(() => refreshPersistedSessions())
-                .catch((error: unknown) =>
-                  setProjectError(
-                    error instanceof Error ? error.message : String(error),
-                  ),
-                )
-            }}
-          >
-            Load project
-          </button>
-          {projectError && <p className="error">{projectError}</p>}
+          <div className="project-actions">
+            <button
+              type="button"
+              disabled={projectBusy}
+              onClick={() => void chooseLocalProject()}
+            >
+              Choose folder…
+            </button>
+            <button
+              type="button"
+              disabled={projectBusy}
+              onClick={() => void openLocalProject(projectPath)}
+            >
+              {projectBusy ? 'Opening…' : 'Open path'}
+            </button>
+          </div>
+          {loadedProjectName && (
+            <p className="project-current" aria-live="polite">
+              <span>Current repository</span>
+              <strong>{loadedProjectName}</strong>
+              <small>
+                {displayedFocus?.trail.length
+                  ? 'Live or replay history available'
+                  : 'Static graph · no activity history yet'}
+              </small>
+            </p>
+          )}
+          {projectError && (
+            <p id="project-error" className="error" role="alert">
+              {projectError}
+            </p>
+          )}
           <div className="rule" />
           <label className="panel__label" htmlFor="node-search">
             SEARCH
@@ -768,7 +1021,9 @@ function App() {
             </select>
             {persistedSessions.length === 0 && (
               <p className="replay-empty">
-                No persisted sessions for this project.
+                {projectLoaded
+                  ? 'No activity history yet. The static graph remains available.'
+                  : 'Open a repository to see its local session history.'}
               </p>
             )}
             {replaySession && (
@@ -934,6 +1189,37 @@ function App() {
             Visual cap changes length only. Exact durations and line counts stay
             available in tooltips and the inspector.
           </p>
+          <div
+            className="activity-geometry"
+            role="group"
+            aria-labelledby="activity-geometry-label"
+          >
+            <p className="panel__label" id="activity-geometry-label">
+              ACTIVITY GEOMETRY
+            </p>
+            <p className="activity-geometry__status" role="status">
+              {visibleActivityCount === 0
+                ? 'No recorded access or edit points yet. The static graph remains available; use Setup & Help to configure a hook or wrapper.'
+                : `${visibleActivityCount.toLocaleString()} recorded access or edit ${visibleActivityCount === 1 ? 'point' : 'points'}. Time extends duration outward; Work renders additions outward and deletions inward.`}
+            </p>
+            <label className="toggle">
+              <input
+                type="checkbox"
+                checked={showActivity}
+                onChange={(event) => setShowActivity(event.target.checked)}
+              />
+              Activity extrusions
+            </label>
+            <label className="toggle">
+              <input
+                aria-label="Access points"
+                type="checkbox"
+                checked={showAccessPoints}
+                onChange={(event) => setShowAccessPoints(event.target.checked)}
+              />
+              Access points
+            </label>
+          </div>
           <div className="rule" />
           <label className="panel__label" htmlFor="layout-select">
             LAYOUT
@@ -956,23 +1242,6 @@ function App() {
               onChange={(event) => setShowLabels(event.target.checked)}
             />
             Labels
-          </label>
-          <label className="toggle">
-            <input
-              type="checkbox"
-              checked={showActivity}
-              onChange={(event) => setShowActivity(event.target.checked)}
-            />
-            Activity extrusions
-          </label>
-          <label className="toggle">
-            <input
-              aria-label="Access points"
-              type="checkbox"
-              checked={showAccessPoints}
-              onChange={(event) => setShowAccessPoints(event.target.checked)}
-            />
-            Access points
           </label>
           <label className="toggle">
             <input
@@ -1105,9 +1374,21 @@ function App() {
           </button>
           <div className="empty-state">
             <p className="empty-state__title">
-              Deterministic project hierarchy
+              {!projectLoaded
+                ? 'Choose a local repository'
+                : visibleFileCount === 0
+                  ? 'No visible files in this repository'
+                  : 'Deterministic project hierarchy'}
             </p>
-            <p>Orbit, zoom, and select a node. Source stays on this machine.</p>
+            <p>
+              {!projectLoaded
+                ? 'Use Choose folder to begin. Nothing is uploaded.'
+                : visibleFileCount === 0
+                  ? 'Check repository contents and ignore rules, then reopen it.'
+                  : displayedFocus?.trail.length
+                    ? 'Orbit, zoom, and select a node. Source stays on this machine.'
+                    : 'Static graph ready. Configure a hook or wrapper for live history.'}
+            </p>
           </div>
         </div>
         <NodeInspector
@@ -1255,4 +1536,38 @@ function saveFilterPreferences(filters: VisualizationFilters) {
   } catch {
     // Local preference persistence is optional and must not affect rendering.
   }
+}
+
+function loadActivityModePreference(): ActivityMode {
+  return loadLocalPreference(activityModePreferenceKey) === 'work'
+    ? 'work'
+    : 'time'
+}
+
+function loadLocalPreference(key: string) {
+  try {
+    return window.localStorage.getItem(key) ?? ''
+  } catch {
+    return ''
+  }
+}
+
+function saveLocalPreference(key: string, value: string) {
+  try {
+    window.localStorage.setItem(key, value)
+  } catch {
+    // Local preferences are optional and never affect collector behavior.
+  }
+}
+
+function removeLocalPreference(key: string) {
+  try {
+    window.localStorage.removeItem(key)
+  } catch {
+    // Failure to clear an optional preference must not block first-run recovery.
+  }
+}
+
+function projectName(path: string) {
+  return path.split(/[\\/]/).filter(Boolean).at(-1) ?? ''
 }

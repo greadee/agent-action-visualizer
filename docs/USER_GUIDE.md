@@ -5,11 +5,12 @@ This guide covers the live desktop experience after a project is loaded.
 ## Load a project
 
 1. Start the desktop app.
-2. Enter an absolute repository path in **Project path**.
-3. Select **Load project**.
+2. Select **Choose folder...**.
+3. Choose a local Git repository in the native Windows folder picker.
 
-The app scans the selected root, builds the deterministic graph, and then
-subscribes to live focus and activity updates.
+The app validates and scans the selected root, builds the deterministic graph,
+remembers the recent project locally, and subscribes to live focus and activity
+updates. Invalid and inaccessible paths show an error with the next action.
 
 ## Understand the scene
 
@@ -25,15 +26,17 @@ by changing the shell radius model.
 
 ## Inspect activity
 
-- **Access points** mark per-access anchors on the node surface.
-- **Time** mode renders one outward duration extrusion per access interval.
+- **Access points** mark edits and accesses at deterministic pseudo-random
+  per-file locations on the node sphere.
+- **Time** mode renders positive observed time outward from each access anchor.
 - **Work** mode renders additions outward and deletions inward from the same
   access anchor.
 - Tooltips and the inspector keep exact duration and work values even when the
   rendered geometry is visually clamped.
 
 Unknown, binary, unsupported-encoding, empty, and pending work states stay
-explicit. The renderer does not invent missing values.
+explicit. Empty history shows no activity geometry, because the renderer does
+not invent missing values.
 
 ## Focus and follow behavior
 
@@ -79,7 +82,19 @@ summary.
   trail, and render diagnostics.
 
 Changing the visual cap changes rendered length only. Exact values remain
-available in tooltips and the inspector.
+available in tooltips and the inspector. Turn off **Activity extrusions** or
+**Access points** to reduce geometry and rendering cost on large histories.
+
+## Collector state and reopening
+
+The collector status distinguishes live observation from a disconnected static
+graph. A disconnect does not block repository selection, graph inspection,
+filters, analytics, replay, or persisted history; new activity during the
+outage may be lost by the deliberate failure-open contract.
+
+Reopening a recent project restores the selected Time or Work mode. Work mode
+continues to show additions outward and deletions inward; Time mode continues to
+show positive duration only.
 
 ## Replay and timeline
 
