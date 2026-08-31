@@ -671,3 +671,17 @@
 - Release result: the portable application and per-user NSIS installer are validated for the recorded Windows boundary; the installer completed install, launch, uninstall, reinstall, second launch, and final cleanup both in CI and directly on the validation host
 - Known limitations: code signing has not been implemented, so Windows may display unknown-publisher or application-reputation warnings; NSIS compilation remains CI-only on this host; Agent Action Sync remains deliberately deferred
 - Next slice: none; the standalone Windows initial-release branch is ready to merge to `main`
+
+## P13-S1 - CI / conserve
+
+- Phase: 13
+- Slice: P13-S1
+- Feature: Hosted-runner usage controls
+- Action: Consolidate, bound, and document
+- Status: complete
+- Files changed: consolidated CI workflow, release-only native package triggers, workflow concurrency and timeouts, packaging and contributor guidance, troubleshooting, release evidence, and this implementation log
+- Incident evidence: pull request 20 CI run `33327495227` and package run `33327495223` each failed three attempts before checkout; all independent Linux, Windows, and macOS jobs had no steps or logs, so repository code never executed
+- Validation: workflow and documentation Prettier checks, `git diff --check`, local root and desktop Go gates, frontend formatting, lint, TypeScript, tests, and production build; pull request 21 created only consolidated CI run `33417648728` with one `validate` job and no package run
+- Usage result: feature pushes no longer duplicate pull-request CI; routine validation uses one Ubuntu runner; native packages run only for `v*` tags or explicit manual requests; superseded runs are cancelled and every job has a timeout
+- Remaining operator action: GitHub ended the pull request 21 `validate` job before checkout with no steps or log; an already-exhausted private-repository hosted-runner allowance can be restored only through quota renewal, an Actions budget change, or a secured self-hosted runner
+- Next slice: none; monitor the first run after hosted-runner access is restored

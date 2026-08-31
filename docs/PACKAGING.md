@@ -69,12 +69,31 @@ unknown-publisher or application-reputation warnings for these artifacts.
 
 ## Linux and macOS
 
-CI packages Linux/amd64 on Ubuntu and macOS universal on a macOS runner using
-native Wails builds. Linux uses Wails' `webkit2_41` tag because current Ubuntu
-images provide WebKit 4.1. macOS artifacts are ZIP archives containing the
-native `.app` bundle. The project does not claim cross-platform artifacts were
-produced from Windows.
+The native package workflow runs only for version tags matching `v*` or an
+explicit **Run workflow** request. It does not run for every branch push or pull
+request. A release operator must run it for the release candidate before
+publishing artifacts.
+
+The workflow packages Linux/amd64 on Ubuntu and macOS universal on a macOS
+runner using native Wails builds. Linux uses Wails' `webkit2_41` tag because
+current Ubuntu images provide WebKit 4.1. macOS artifacts are ZIP archives
+containing the native `.app` bundle. The project does not claim cross-platform
+artifacts were produced from Windows.
 
 Linux requires GCC, GTK3, and WebKit development packages. macOS requires Xcode
 Command Line Tools. Run `wails doctor` on the target platform before packaging.
 No release is published by CI.
+
+## Actions usage policy
+
+Routine validation runs once for each pull request and again after merge to
+`main`; feature-branch pushes do not launch a duplicate run. The root Go,
+frontend, and desktop Go gates share one Ubuntu runner to avoid repeated runner
+setup and artifact transfer. Workflow concurrency cancels superseded runs, and
+all jobs have bounded timeouts.
+
+Native Windows, Linux, and macOS packaging consumes substantially more hosted
+runner time and is therefore release-only or manual. Once a private
+repository's hosted-runner allowance is exhausted, workflow changes cannot
+restore that allowance: wait for the account quota to renew, increase the
+account Actions budget, or use an appropriately secured self-hosted runner.

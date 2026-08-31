@@ -2,15 +2,21 @@ name: ci
 
 on:
   push:
-    branches: [main, "codex/**"]
+    branches: [main]
   pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
 
 jobs:
-  go:
+  validate:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v6
@@ -19,51 +25,29 @@ jobs:
           cache-dependency-path: |
             go.sum
             apps/desktop/go.sum
-      - run: go mod verify
-      - run: go test ./...
-      - run: go vet ./...
-
-  frontend:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: apps/desktop/frontend
-    steps:
-      - uses: actions/checkout@v4
       - uses: actions/setup-node@v6
         with:
           node-version: "22.22.3"
           cache: npm
           cache-dependency-path: apps/desktop/frontend/package-lock.json
-      - run: npm ci
-      - run: npm audit --json | node scripts/check-npm-audit.mjs high
-      - run: npm run format:check
-      - run: npm run lint
-      - run: npm run typecheck
-      - run: npm test
-      - run: npm run build
-      - uses: actions/upload-artifact@v4
-        with:
-          name: desktop-frontend-dist
-          path: apps/desktop/frontend/dist
-          retention-days: 1
-
-  desktop:
-    needs: [go, frontend]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v6
-        with:
-          go-version: "1.26.6"
-          cache-dependency-path: apps/desktop/go.sum
-      - uses: actions/download-artifact@v4
-        with:
-          name: desktop-frontend-dist
-          path: apps/desktop/frontend/dist
+      - name: Validate root Go module
+        run: |
+          go mod verify
+          go test ./...
+          go vet ./...
+      - name: Validate frontend
+        working-directory: apps/desktop/frontend
+        run: |
+          npm ci
+          npm audit --json | node scripts/check-npm-audit.mjs high
+          npm run format:check
+          npm run lint
+          npm run typecheck
+          npm test
+          npm run build
       - working-directory: apps/desktop
-        run: go mod verify
-      - working-directory: apps/desktop
-        run: go test .
-      - working-directory: apps/desktop
-        run: go vet .
+        name: Validate desktop Go module
+        run: |
+          go mod verify
+          go test .
+          go vet .
