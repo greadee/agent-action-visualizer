@@ -79,6 +79,18 @@ The portable Windows build can be produced locally, but NSIS is not installed
 on this host. Windows installer generation is validated by CI. See
 [PACKAGING.md](PACKAGING.md) for the packaging boundary.
 
+## GitHub Actions jobs fail before checkout and have no logs
+
+If every operating-system job ends before its first step and GitHub provides no
+job log, the workflow has not reached repository code. Check the repository
+owner's Actions usage and spending controls. For a private repository, restore
+hosted-runner access by waiting for quota renewal, increasing the Actions
+budget, or attaching an appropriately secured self-hosted runner.
+
+Do not repeatedly rerun the same no-step failure. Routine CI is consolidated
+and duplicate branch runs are disabled; native packaging runs only for `v*`
+tags or explicit manual requests. See [PACKAGING.md](PACKAGING.md).
+
 ## Browser or desktop logs show a `THREE.Clock` deprecation warning
 
 The current React Three Fiber dependency path still emits that upstream warning.

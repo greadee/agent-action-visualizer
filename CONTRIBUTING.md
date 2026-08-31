@@ -59,6 +59,11 @@ Packaging:
 make package-windows
 ```
 
+Pull requests run the consolidated CI workflow. Feature-branch pushes do not
+run a duplicate copy. The native Windows/Linux/macOS package workflow is
+reserved for `v*` release tags and explicit manual runs; run it for any release
+candidate and when packaging behavior changes.
+
 ## Commit and slice hygiene
 
 - Work one coherent `P#-S#` slice at a time.

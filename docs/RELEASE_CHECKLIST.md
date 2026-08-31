@@ -224,3 +224,17 @@ journal and WebView data remained present.
 The manifest matched all five executable hashes. Code signing has not been
 implemented, so all executables remain unsigned and Windows may display
 unknown-publisher or application-reputation warnings.
+
+## GitHub Actions allocation follow-up
+
+On August 30, 2026, pull request 20 created CI run `33327495227` and package
+run `33327495223`. Three attempts of each run failed before checkout. Every Go,
+frontend, Windows, Linux, and macOS job contained no steps and produced no job
+log; the dependent desktop job was skipped. This is an account-level hosted
+runner allocation failure rather than a repository test result.
+
+The P13-S1 follow-up removes duplicate feature-push/PR validation, consolidates
+routine checks onto one Ubuntu job, restricts native packaging to `v*` tags or
+manual requests, cancels superseded runs, and bounds job duration. Restoring an
+already-exhausted private-repository runner allowance still requires quota
+renewal, an Actions budget change, or a secured self-hosted runner.
