@@ -238,3 +238,8 @@ routine checks onto one Ubuntu job, restricts native packaging to `v*` tags or
 manual requests, cancels superseded runs, and bounds job duration. Restoring an
 already-exhausted private-repository runner allowance still requires quota
 renewal, an Actions budget change, or a secured self-hosted runner.
+
+Pull request 21 verified the new remote topology: CI run `33417648728` created
+one `validate` job, and no package workflow ran. GitHub again ended the sole job
+before checkout with no steps or log, confirming that workflow fan-out is fixed
+while the account-level hosted-runner allowance remains unavailable.
