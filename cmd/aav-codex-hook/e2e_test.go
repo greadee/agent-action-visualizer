@@ -43,10 +43,12 @@ func TestReproducibleCodexFixtureSession(t *testing.T) {
 		t.Fatal(err)
 	}
 	runFixtureHook(t, endpoint, fixtureInput("SessionStart", root, nil))
+	waitForFixtureEvents(t, recorder, 1)
 	runFixtureHook(t, endpoint, fixtureInput("PostToolUse", root, map[string]any{
 		"turn_id": "turn-read", "tool_name": "read_file", "tool_use_id": "read-seed",
 		"tool_input": map[string]any{"path": "seed.txt"},
 	}))
+	waitForFixtureEvents(t, recorder, 3)
 
 	// A disconnected collector must silently lose only visualization evidence.
 	server.Close()
@@ -70,6 +72,7 @@ func TestReproducibleCodexFixtureSession(t *testing.T) {
 		"turn_id": "turn-create", "tool_name": "create_file", "tool_use_id": "create-file",
 		"tool_input": map[string]any{"path": "created.txt"},
 	}))
+	waitForFixtureEvents(t, recorder, 5)
 	if err := os.WriteFile(filepath.Join(root, "main.txt"), []byte("new\nextra\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -77,6 +80,7 @@ func TestReproducibleCodexFixtureSession(t *testing.T) {
 		"turn_id": "turn-patch", "tool_name": "apply_patch", "tool_use_id": "patch-main",
 		"tool_input": map[string]any{"command": "*** Begin Patch\n*** Update File: main.txt\n@@\n-old\n+new\n+extra\n*** End Patch"},
 	}))
+	waitForFixtureEvents(t, recorder, 7)
 	if err := os.Rename(filepath.Join(root, "created.txt"), filepath.Join(root, "moved.txt")); err != nil {
 		t.Fatal(err)
 	}
@@ -84,6 +88,7 @@ func TestReproducibleCodexFixtureSession(t *testing.T) {
 		"turn_id": "turn-move", "tool_name": "move_file", "tool_use_id": "move-file",
 		"tool_input": map[string]any{"source": "created.txt", "destination": "moved.txt"},
 	}))
+	waitForFixtureEvents(t, recorder, 9)
 	if err := os.Remove(filepath.Join(root, "moved.txt")); err != nil {
 		t.Fatal(err)
 	}
@@ -91,6 +96,7 @@ func TestReproducibleCodexFixtureSession(t *testing.T) {
 		"turn_id": "turn-delete", "tool_name": "delete_file", "tool_use_id": "delete-file",
 		"tool_input": map[string]any{"path": "moved.txt"},
 	}))
+	waitForFixtureEvents(t, recorder, 11)
 	runFixtureHook(t, endpoint, fixtureInput("SessionEnd", root, map[string]any{"reason": "other"}))
 	waitForFixtureEvents(t, recorder, 12)
 
@@ -214,7 +220,7 @@ func (r *fixtureRecorder) state(t *testing.T, id string) session.State {
 
 func waitForFixtureEvents(t *testing.T, recorder *fixtureRecorder, expected int) {
 	t.Helper()
-	deadline := time.Now().Add(time.Second)
+	deadline := time.Now().Add(3 * time.Second)
 	for time.Now().Before(deadline) {
 		if recorder.eventCount() >= expected {
 			return

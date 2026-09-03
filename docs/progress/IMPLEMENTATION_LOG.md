@@ -685,3 +685,17 @@
 - Usage result: feature pushes no longer duplicate pull-request CI; routine validation uses one Ubuntu runner; native packages run only for `v*` tags or explicit manual requests; superseded runs are cancelled and every job has a timeout
 - Remaining operator action: GitHub ended the pull request 21 `validate` job before checkout with no steps or log; an already-exhausted private-repository hosted-runner allowance can be restored only through quota renewal, an Actions budget change, or a secured self-hosted runner
 - Next slice: none; monitor the first run after hosted-runner access is restored
+
+## P13-S2 - CI reliability / fix
+
+- Phase: 13
+- Slice: P13-S2
+- Feature: Deterministic Linux validation after hosted-runner access resumed
+- Action: Diagnose, synchronize, and validate
+- Status: complete
+- Failure evidence: rerun `33417818492` reached an Ubuntu 24.04 runner after the allowance reset, then exposed out-of-order hook fixture processing and a filesystem rename split across adjacent debounce batches
+- Files changed: hook end-to-end synchronization; filesystem observer readiness and shared rename-window batching; deterministic rename regression coverage; GitHub Actions Checkout v5; this implementation log
+- Tests run: hook fixture 100 consecutive runs; rename/correlation fixture and shared-window regression 500 consecutive runs; complete root and desktop Go module verification, tests, and vet; frontend clean install, audit gate, formatting, lint, TypeScript, 20-file/64-test suite, and production build; workflow Prettier check; `git diff --check`
+- Behavior result: hook collection remains silent and failure-open with its existing 75 ms deadline; the fixture now waits for each accepted batch before launching the next process, and the observer retains unique create/rename candidates until their shared correlation window closes
+- Runner maintenance: all CI and package jobs now use Checkout v5, removing the Node 20 action-runtime warning on Node 24 runners
+- Next slice: P14-S1 - Dependencies / consolidate
