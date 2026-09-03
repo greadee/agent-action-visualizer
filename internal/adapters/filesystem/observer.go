@@ -303,11 +303,18 @@ func isIgnoreFile(path string) bool {
 }
 
 func readyChanges(pending map[string]*pendingChange, now time.Time, debounce, renameWindow time.Duration, all bool, limit int) []*pendingChange {
+	latestRenameChange := time.Time{}
+	for _, item := range pending {
+		if needsRenameWindow(item) && item.last.After(latestRenameChange) {
+			latestRenameChange = item.last
+		}
+	}
 	keys := make([]string, 0, len(pending))
 	for path, item := range pending {
 		age := now.Sub(item.last)
 		required := debounce
-		if item.op&(opRename|opRemove) != 0 || item.op&opCreate != 0 && !item.before.exists {
+		if needsRenameWindow(item) {
+			age = now.Sub(latestRenameChange)
 			required = max(required, renameWindow)
 		}
 		if all || age >= required {
@@ -324,6 +331,10 @@ func readyChanges(pending map[string]*pendingChange, now time.Time, debounce, re
 		delete(pending, path)
 	}
 	return result
+}
+
+func needsRenameWindow(item *pendingChange) bool {
+	return item.op&(opRename|opRemove) != 0 || item.op&opCreate != 0 && !item.before.exists
 }
 
 func (o *Observer) eventsForBatch(ctx context.Context, observation wrapper.Observation, root string, batch []*pendingChange, sequence *uint64) []protocol.Event {
