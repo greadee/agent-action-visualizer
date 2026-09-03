@@ -685,3 +685,17 @@
 - Usage result: feature pushes no longer duplicate pull-request CI; routine validation uses one Ubuntu runner; native packages run only for `v*` tags or explicit manual requests; superseded runs are cancelled and every job has a timeout
 - Remaining operator action: GitHub ended the pull request 21 `validate` job before checkout with no steps or log; an already-exhausted private-repository hosted-runner allowance can be restored only through quota renewal, an Actions budget change, or a secured self-hosted runner
 - Next slice: none; monitor the first run after hosted-runner access is restored
+
+## P14-S1 - Dependencies / consolidate
+
+- Phase: 14
+- Slice: P14-S1
+- Feature: Consolidated frontend dependency maintenance
+- Action: Merge, validate, and preserve
+- Status: complete
+- Files changed: frontend dependency manifest and lockfile; this implementation log
+- Dependency result: merged the five outstanding React Three Fiber 9.7.0, Drei 10.7.8, typescript-eslint 8.68.0, Vitest 4.1.11, and Vite 8.2.2 update commits onto the scope-only `dependencies` branch without deleting their historical remote branches
+- Tests run: clean `npm ci`; complete 20-file/64-test Vitest suite; ESLint with zero warnings; TypeScript checking; Vite production build; `git diff --check`
+- Repository result: the dependency branches contain only manifest and lockfile updates; generated `node_modules` and `dist` directories remain ignored and untracked
+- Known limitations: historical remote branch names cannot be renamed while also preserving the original refs; new maintenance work uses scope-only branch names
+- Next slice: P14-S2 - CI reliability / fix
