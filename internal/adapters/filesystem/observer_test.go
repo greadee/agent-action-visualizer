@@ -65,11 +65,17 @@ func TestObserverCorrelatesUniqueRenameOutOfOrder(t *testing.T) {
 	if err := os.WriteFile(oldPath, []byte("same bytes\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
+	fixedTime := time.Unix(1_700_000_000, 0)
+	if err := os.Chtimes(oldPath, fixedTime, fixedTime); err != nil {
+		t.Fatal(err)
+	}
 	source := newFakeSource(16)
+	ready := make(chan struct{})
 	observer := NewObserver(Config{
 		Debounce:     5 * time.Millisecond,
 		RenameWindow: 20 * time.Millisecond,
 		Git:          &recordingGitInspector{},
+		onReady:      func() { close(ready) },
 		newSource: func(int) (eventSource, error) {
 			return source, nil
 		},
@@ -81,7 +87,11 @@ func TestObserverCorrelatesUniqueRenameOutOfOrder(t *testing.T) {
 		defer close(done)
 		observer.Observe(ctx, testObservation(root), emitter)
 	}()
-	source.waitReady(t)
+	select {
+	case <-ready:
+	case <-time.After(time.Second):
+		t.Fatal("observer did not finish its initial snapshot")
+	}
 
 	if err := os.Rename(oldPath, newPath); err != nil {
 		t.Fatal(err)
@@ -95,6 +105,32 @@ func TestObserverCorrelatesUniqueRenameOutOfOrder(t *testing.T) {
 	if event.PreviousPath != oldPath || event.Path != newPath ||
 		event.SourceConfidence != protocol.ConfidenceCorrelated {
 		t.Fatalf("rename = %#v", event)
+	}
+}
+
+func TestReadyChangesKeepsRenameCandidatesInOneBatch(t *testing.T) {
+	started := time.Unix(1_700_000_000, 0)
+	pending := map[string]*pendingChange{
+		"new.go": {
+			path:  "new.go",
+			op:    opCreate,
+			first: started,
+			last:  started,
+		},
+		"old.go": {
+			path:   "old.go",
+			op:     opRename,
+			before: fileState{exists: true},
+			first:  started.Add(time.Millisecond),
+			last:   started.Add(time.Millisecond),
+		},
+	}
+
+	if ready := readyChanges(pending, started.Add(20*time.Millisecond), 5*time.Millisecond, 20*time.Millisecond, false, 16); len(ready) != 0 {
+		t.Fatalf("rename candidates split before the shared window elapsed: %#v", ready)
+	}
+	if ready := readyChanges(pending, started.Add(21*time.Millisecond), 5*time.Millisecond, 20*time.Millisecond, false, 16); len(ready) != 2 {
+		t.Fatalf("got %d rename candidates after the shared window, want 2", len(ready))
 	}
 }
 
