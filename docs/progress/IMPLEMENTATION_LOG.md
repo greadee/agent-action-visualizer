@@ -699,3 +699,17 @@
 - Behavior result: hook collection remains silent and failure-open with its existing 75 ms deadline; the fixture now waits for each accepted batch before launching the next process, and the observer retains unique create/rename candidates until their shared correlation window closes
 - Runner maintenance: all CI and package jobs now use Checkout v5, removing the Node 20 action-runtime warning on Node 24 runners
 - Next slice: P14-S1 - Dependencies / consolidate
+
+## P14-S1 - Dependencies / consolidate
+
+- Phase: 14
+- Slice: P14-S1
+- Feature: Consolidated frontend dependency maintenance
+- Action: Merge, validate, and preserve
+- Status: complete
+- Files changed: frontend dependency manifest and lockfile; this implementation log
+- Dependency result: merged the five outstanding React Three Fiber 9.7.0, Drei 10.7.8, typescript-eslint 8.68.0, Vitest 4.1.11, and Vite 8.2.2 update commits onto the scope-only `dependencies` branch without deleting their historical remote branches
+- Tests run: clean `npm ci`; complete 20-file/64-test Vitest suite; ESLint with zero warnings; TypeScript checking; Vite production build; `git diff --check`
+- Repository result: the dependency branches contain only manifest and lockfile updates; generated `node_modules` and `dist` directories remain ignored and untracked
+- Known limitations: historical remote branch names cannot be renamed while also preserving the original refs; new maintenance work uses scope-only branch names
+- Next slice: P14-S2 - Repository / simplify
