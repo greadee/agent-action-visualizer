@@ -713,3 +713,18 @@
 - Repository result: the dependency branches contain only manifest and lockfile updates; generated `node_modules` and `dist` directories remain ignored and untracked
 - Known limitations: historical remote branch names cannot be renamed while also preserving the original refs; new maintenance work uses scope-only branch names
 - Next slice: P14-S2 - Repository / simplify
+
+## P14-S2 - Repository / simplify
+
+- Phase: 14
+- Slice: P14-S2
+- Feature: User-first repository guidance and maintenance cleanup
+- Action: Rewrite, consolidate, audit, and synchronize
+- Status: complete
+- Files changed: README user guidance; contributor branch and dependency-maintenance policy; removal of scheduled Dependabot version-update configuration; this implementation log
+- Documentation result: README now covers standalone Windows launch, native repository selection, deterministic spheres/access anchors/Time and Work extrusions, visibility controls, replay, filters, analytics, first-run/error/disconnected states, Codex and wrapper setup, local privacy, unsigned-release warning, and deferred Agent Action Sync
+- Repository result: pull requests 15 through 19 were closed as superseded after their five preserved dependency commits were consolidated and merged through pull request 23; every remaining remote branch tip is an ancestor of `main`; no remote branches were deleted
+- Naming result: new branches use one scope-only name. Existing `codex` and `dependabot` refs remain as historical records because Git requires deleting an old ref to rename it. Scheduled Dependabot version updates were removed so future routine updates can use the `dependencies` branch rather than creating package-manager path names
+- Audit result: README and contributor local links and formatting pass; `git diff --check` passes; each preserved remote tree has no tracked executable, installer, database, secret, cache, build-output, or dependency directory. The three versioned `@prool-ui` tarballs are intentional checksummed frontend inputs, not generated release artifacts or source snapshots
+- Implementation SHA: `99d631a`
+- Next slice: none; repository cleanup is ready for final CI and merge
