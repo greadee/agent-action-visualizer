@@ -1,154 +1,153 @@
 # Agent Action Visualizer
 
-Agent Action Visualizer (AAV) is a local-first desktop application for observing
-coding-agent activity as a stable, replayable 3D project graph.
+Agent Action Visualizer (AAV) is a local-first desktop app that turns activity
+inside a code repository into a stable, replayable 3D graph. It helps you see
+which files an agent visited, how long it worked there, and the size and
+direction of edits without sending repository activity to a model or network
+service.
 
-The non-negotiable project rule is that observation stays deterministic and
-local. Adapters do not call a model, do not modify prompts, and do not report
-visualization state back into an agent context.
+## Start on Windows
 
-## What it does
+Use either release format:
 
-- Builds a deterministic repository graph with stable node identity.
-- Tracks live focus, current/previous activity, and directional session trails.
-- Renders per-access Time and Work geometry from stable access anchors.
-- Persists bounded local session history for timeline replay and analytics.
-- Integrates with Codex hooks and a generic wrapper without changing agent
-  stdout, stderr, exit status, or working files.
+- **Installer:** run
+  `agent-action-visualizer-v0.1.0-windows-amd64-installer.exe`. It installs for
+  the current user without administrator access and adds Start menu and desktop
+  shortcuts.
+- **Portable:** extract the complete Windows package and keep
+  `agent-action-visualizer-v0.1.0-windows-amd64.exe`, `aav.exe`,
+  `aav-codex-hook.exe`, `aav-wrapper.exe`, and `SHA256SUMS.txt` together. Then
+  double-click the desktop executable.
 
-## Platform status
+Neither format requires Go, Node.js, npm, Wails, a source checkout, or a
+terminal to launch the app. Verify downloaded files against `SHA256SUMS.txt`.
 
-- Windows desktop development and portable packaging are validated locally.
-- The per-user NSIS installer passed install, launch, uninstall, reinstall, and
-  final-cleanup validation in Windows CI and directly on the Windows validation
-  host.
-- Linux and macOS packaging are validated in CI only.
-- Code signing has not been implemented. Windows may display unknown-publisher
-  or application-reputation warnings, and macOS artifacts are not notarized.
+Code signing has not been implemented. Windows may show an unknown-publisher
+or application-reputation warning for the installer or portable executable.
+See the [release checklist](docs/RELEASE_CHECKLIST.md) for validated artifact
+names, checksums, and release limitations.
 
-See [known limitations](docs/KNOWN_LIMITATIONS.md) for the current release
-boundary.
+## Open a repository
 
-## Standalone Windows quickstart
+1. Launch Agent Action Visualizer.
+2. Select **Choose folder...** on the first-run screen.
+3. Choose a local Git repository in the native Windows folder picker.
+4. Wait for the deterministic graph to populate.
 
-Keep the desktop executable, `aav.exe`, `aav-codex-hook.exe`,
-`aav-wrapper.exe`, and `SHA256SUMS.txt` together. Verify the checksums,
-double-click the desktop executable, and select **Choose folder...**. The
-portable app requires no developer tooling.
+The selected repository is remembered locally for quick reopening. You can
+switch projects from the app at any time. Invalid or inaccessible paths show a
+specific error and a way to choose another folder.
 
-## Quickstart from source
+## Read the 3D graph
 
-Prerequisites:
+The repository hierarchy always produces the same layout for the same project
+state:
 
-- Go `1.26.6`
-- Node.js `22.22.3`
-- npm `10.9.8`
-- Wails `2.12.0`
+- A sphere represents each visible repository node; file spheres carry
+  activity geometry.
+- Structure lines connect directories and files.
+- An access or edit is anchored at a deterministic pseudo-random point on its
+  file sphere, so the same activity does not jump around between renders.
+- **Time** mode extrudes positive observed time outward from that point.
+- **Work** mode extrudes added lines outward and deleted lines inward from the
+  same point.
+- Tooltips and the inspector retain exact duration and line counts even when
+  long geometry is visually capped.
 
-Install frontend dependencies:
+Use **Access points** and **Activity extrusions** to show or hide those details.
+Turning either off reduces geometry and rendering work for large repositories
+or long histories. You can also choose linear or logarithmic scaling, adjust
+the visual cap, and toggle structure lines, labels, session trails, and local
+render diagnostics.
 
-```powershell
-cd apps/desktop/frontend
-npm ci
-```
+## Explore activity
 
-Run the desktop app in development mode from `apps/desktop`:
+- **Auto-follow** tracks the active file. Interact with the scene to inspect it
+  manually, then use **Return live** or the resume delay to follow activity
+  again.
+- **Pause updates** freezes the displayed focus and trail without stopping the
+  observed command.
+- **Session replay** opens persisted sessions and provides timeline and
+  playback controls.
+- **Filters** narrow the scene by path, file type, operation, confidence,
+  agent, or time range. **Reset filters** restores the full view.
+- **Analytics** summarizes visible accesses, files, duration, line changes,
+  operations, directories, agents, and evidence confidence.
 
-```powershell
-cd ..
-wails dev
-```
+The chosen Time or Work mode is restored when a recent project is reopened.
+See the [user guide](docs/USER_GUIDE.md) and
+[timeline/replay guide](docs/TIMELINE_REPLAY.md) for every control.
 
-Build the desktop app:
+## Connect live activity
 
-```powershell
-wails build
-```
+Opening a repository works without an agent connection: the app still shows
+the static graph and any saved local history. To collect new activity, open the
+in-app setup guidance for one of these integrations.
 
-Run the repository checks:
+### Codex
 
-```powershell
-go test ./...
-go vet ./...
-cd apps/desktop
-go test ./...
-go vet ./...
-cd frontend
-npm run format:check
-npm run lint
-npm run typecheck
-npm test -- --run
-npm run build
-```
-
-More detail, including packaging and adapter setup, is in
-[docs/INSTALLATION.md](docs/INSTALLATION.md).
-
-## Review fixture
-
-Create a deterministic review repository with access, time, and work evidence:
-
-```powershell
-go run ./cmd/aav-review-project -out C:\tmp\aav-extrusion-review
-```
-
-Load that path in the desktop app to inspect stable shells, access points,
-Time/Work geometry, filtering, analytics, and replay behavior.
-
-## Codex and generic wrapper setup
-
-Standalone packages already contain the three tools below. The following build
-commands are only for source checkouts.
-
-Build the CLI utilities:
+The packaged `aav.exe` installs, checks, tests, and removes the local Codex hook.
+For a project-local setup, run these commands from the release directory:
 
 ```powershell
-New-Item -ItemType Directory -Force .cache\aav-bin | Out-Null
-go build -o .cache\aav-bin\aav.exe ./cmd/aav
-go build -o .cache\aav-bin\aav-codex-hook.exe ./cmd/aav-codex-hook
-go build -o .cache\aav-bin\aav-wrapper.exe ./cmd/aav-wrapper
+.\aav.exe codex install --scope project --project C:\path\to\repository
+.\aav.exe codex status --scope project --project C:\path\to\repository
+.\aav.exe codex test --scope project --project C:\path\to\repository
 ```
 
-Project-local Codex hook install, status, test, and uninstall:
+Codex may ask you to trust the project or approve a new hook. The installer
+manages only marked AAV hook entries and can remove them with `codex uninstall`.
+Read [Codex setup](docs/CODEX_INSTALLER.md) for user-level setup, dry runs, and
+recovery behavior.
+
+### Other local agents and commands
+
+Run a command through the packaged generic wrapper:
 
 ```powershell
-.\.cache\aav-bin\aav.exe codex install --scope project --project C:\path\to\repository
-.\.cache\aav-bin\aav.exe codex status --scope project --project C:\path\to\repository
-.\.cache\aav-bin\aav.exe codex test --scope project --project C:\path\to\repository
-.\.cache\aav-bin\aav.exe codex uninstall --scope project --project C:\path\to\repository
+.\aav-wrapper.exe --project-root C:\path\to\repository -- your-agent-command argument
 ```
 
-Generic wrapper usage:
+The wrapper preserves the child command's arguments, input, output, files, and
+exit behavior. Read the [generic wrapper guide](docs/GENERIC_WRAPPER.md) for
+flags and integration details.
 
-```powershell
-.\.cache\aav-bin\aav-wrapper.exe --project-root C:\path\to\repository -- your-agent-command argument
-```
+## Empty, disconnected, and error states
 
-See [docs/CODEX_INSTALLER.md](docs/CODEX_INSTALLER.md) and
-[docs/GENERIC_WRAPPER.md](docs/GENERIC_WRAPPER.md) for the authoritative
-contracts and failure-open guarantees.
+- **First run:** choose a repository to build the graph.
+- **Empty history:** the graph remains available, but no activity points or
+  extrusions are invented.
+- **Disconnected collector:** saved history, graph inspection, filters,
+  analytics, and replay remain usable. New visualization evidence may be lost
+  until the collector reconnects.
+- **Empty filtered view:** reset filters to restore visible files.
+- **Invalid or inaccessible folder:** choose another repository or restore
+  access, then retry.
 
-## Documentation map
+Observation is deliberately failure-open. If a hook, wrapper parser, filesystem
+watcher, or collector fails, the agent or wrapped command continues with its
+normal output, files, and exit status.
 
-- [Installation](docs/INSTALLATION.md)
-- [User guide](docs/USER_GUIDE.md)
-- [Timeline and replay](docs/TIMELINE_REPLAY.md)
-- [Privacy and no-model-call boundary](docs/PRIVACY.md)
-- [Troubleshooting](docs/TROUBLESHOOTING.md)
-- [Known limitations](docs/KNOWN_LIMITATIONS.md)
-- [Contributor guide](CONTRIBUTING.md)
-- [Architecture](docs/ARCHITECTURE.md)
-- [Event protocol](docs/EVENT_PROTOCOL.md)
-- [Security and threat model](docs/SECURITY.md)
-- [Reliability and recovery](docs/RELIABILITY.md)
-- [Rendering performance](docs/PERFORMANCE.md)
-- [Packaging](docs/PACKAGING.md)
-- [Release checklist](docs/RELEASE_CHECKLIST.md)
-- [Codex compatibility evidence](docs/CODEX_COMPATIBILITY.md)
-- [Codex hook behavior](docs/CODEX_HOOK.md)
-- [Codex reproducible end-to-end validation](docs/CODEX_E2E.md)
-- [Implementation log](docs/progress/IMPLEMENTATION_LOG.md)
+## Local data and privacy
+
+AAV stores bounded metadata such as project-relative paths, timestamps,
+operations, duration, and line counts in a local journal. It does not persist
+source contents, prompts, model responses, command arguments, environment
+variables, or transcript contents by default. It does not call a model or send
+visualization summaries back into an agent context.
+
+Uninstalling the Windows app removes program files and shortcuts but preserves
+the separate local journal and preferences for recovery or reinstallation.
+Read [privacy](docs/PRIVACY.md), [troubleshooting](docs/TROUBLESHOOTING.md), and
+[known limitations](docs/KNOWN_LIMITATIONS.md) for the full operating boundary.
+
+Agent Action Sync remains deliberately deferred.
+
+## Contributing
+
+Source setup, validation commands, packaging, branch naming, and architecture
+references live in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
-Licensed under Apache License 2.0. See [LICENSE](LICENSE).
+Licensed under the Apache License 2.0. See [LICENSE](LICENSE).
