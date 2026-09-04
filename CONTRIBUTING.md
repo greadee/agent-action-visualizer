@@ -64,6 +64,20 @@ run a duplicate copy. The native Windows/Linux/macOS package workflow is
 reserved for `v*` release tags and explicit manual runs; run it for any release
 candidate and when packaging behavior changes.
 
+## Branch names
+
+Name new branches for one scope, area, feature, or function in the application.
+Examples include `rendering`, `replay`, `windows-installer`, `reliability`, and
+`dependencies`.
+
+Do not add tool, automation, package-manager, or repository-path prefixes such
+as `codex`, `dependabot`, `npm_and_yarn`, or `apps`. Historical remote branches
+are retained for traceability, but new work follows the scope-only convention.
+
+Dependency updates are consolidated manually on `dependencies` so one tested
+change replaces separate per-package pull requests. Keep manifest and lockfile
+changes together and run the complete frontend validation suite before merge.
+
 ## Commit and slice hygiene
 
 - Work one coherent `P#-S#` slice at a time.
